@@ -1,0 +1,100 @@
+name: SDK checks
+on:
+    push:
+        branches: [test-build]
+    workflow_dispatch:
+    workflow_call:
+permissions:
+    contents: read
+jobs:
+    libraries:
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-24.04, windows-2022, macos-15]
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v7.0.1
+            - uses: actions/setup-go@v7.0.0
+              with:
+                  go-version: '1.27.4'
+                  cache: false
+            - uses: dtolnay/rust-toolchain@stable
+            - uses: actions/setup-python@v7.1.0
+              with:
+                  python-version: '3.15'
+            - run: python tools/check_vendor_compatibility.py
+            - run: python tests/test_vendor_gate.py
+            - run: python tests/test_vendor_upstream.py
+            - run: python -m pip install -e "Python[thumbnail]"
+            - uses: actions/setup-node@v7.1.0
+              with:
+                  node-version: '26'
+            - run: npm ci --ignore-scripts
+              working-directory: Node
+            - run: python tools/build.py test
+            - run: go test -race ./...
+              working-directory: Go
+            - run: cargo test --locked --no-default-features --manifest-path Rust/Cargo.toml
+            - run: cargo test --locked --all-features --manifest-path Rust/Cargo.toml
+            - run: cargo clippy --locked --all-targets --all-features --manifest-path Rust/Cargo.toml -- -D warnings
+            - run: python -m pip install setuptools==84.2.1 wheel
+            - run: python tools/build.py package
+            - run: python tests/validate_candidates.py
+            - uses: actions/upload-artifact@v7.0.2
+              if: always()
+              with:
+                  name: sdk-candidates-${{ matrix.os }}
+                  path: |
+                      artifacts/stream-dock-manager-plugin-sdk-*
+                      artifacts/stream_dock_manager_plugin_sdk-*.whl
+                  if-no-files-found: warn
+    python:
+        # Python 3.15 runs the same suites as part of the integrated libraries job
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-24.04, windows-2022, macos-15]
+                python: ['3.11', '3.12', '3.13', '3.14']
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v7.0.1
+            - uses: actions/setup-python@v7.1.0
+              with:
+                  python-version: ${{ matrix.python }}
+            # Python's wire and WebSocket tests use the shared JavaScript peer
+            - uses: actions/setup-node@v7.1.0
+              with:
+                  node-version: '26'
+            - run: npm ci --ignore-scripts
+              working-directory: Node
+            - run: python -m pip install -e "Python[thumbnail]"
+            - run: python tools/build.py test-python
+
+    javascript:
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-24.04, windows-2022, macos-15]
+                node: ['22', '24', '26']
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v7.0.1
+            - uses: actions/setup-node@v7.1.0
+              with:
+                  node-version: ${{ matrix.node }}
+            - uses: actions/setup-python@v7.1.0
+              with:
+                  python-version: '3.15'
+            - run: npm ci --ignore-scripts
+              working-directory: Node
+            - run: npm run build
+              working-directory: Node
+            - run: python tests/run_javascript.py
+
+            - uses: actions/upload-artifact@v7.0.2
+              if: always()
+              with:
+                  name: javascript-bundles-${{ matrix.os }}-node-${{ matrix.node }}
+                  path: artifacts/tree-shaking/*.json
+                  if-no-files-found: warn

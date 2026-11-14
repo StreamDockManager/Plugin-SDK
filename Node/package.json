@@ -1,0 +1,168 @@
+{
+    "name": "stream-dock-manager-plugin-sdk",
+    "version": "0.1.0",
+    "type": "module",
+    "license": "MIT",
+    "engines": {
+        "node": ">=22 <27"
+    },
+    "files": [
+        "dist",
+        "LICENSE",
+        "README.md",
+        "tools"
+    ],
+    "sideEffects": [
+        "./dist/web/inspector-sdk.js",
+        "./dist/web/inspector-fields.js",
+        "./dist/web/inspector-workflows.js"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/src/index.d.ts",
+            "import": "./dist/src/index.js"
+        },
+        "./openaction-device": {
+            "types": "./dist/src/openaction_device.d.ts",
+            "import": "./dist/src/openaction_device.js"
+        },
+        "./protocol": {
+            "types": "./dist/src/protocol.d.ts",
+            "import": "./dist/src/protocol.js"
+        },
+        "./runtime": {
+            "types": "./dist/src/runtime.d.ts",
+            "import": "./dist/src/runtime.js"
+        },
+        "./authoring": {
+            "types": "./dist/src/authoring.d.ts",
+            "import": "./dist/src/authoring.js"
+        },
+        "./connectors": {
+            "types": "./dist/src/connectors.d.ts",
+            "import": "./dist/src/connectors.js"
+        },
+        "./settings": {
+            "types": "./dist/src/settings.d.ts",
+            "import": "./dist/src/settings.js"
+        },
+        "./credentials": {
+            "types": "./dist/src/credentials.d.ts",
+            "import": "./dist/src/credentials.js"
+        },
+        "./polling": {
+            "types": "./dist/src/polling.d.ts",
+            "import": "./dist/src/polling.js"
+        },
+        "./storage": {
+            "types": "./dist/src/storage.d.ts",
+            "import": "./dist/src/storage.js"
+        },
+        "./hoststorage": {
+            "types": "./dist/src/hoststorage.d.ts",
+            "import": "./dist/src/hoststorage.js"
+        },
+        "./httpclient": {
+            "types": "./dist/src/httpclient.d.ts",
+            "import": "./dist/src/httpclient.js"
+        },
+        "./network": {
+            "types": "./dist/src/network.d.ts",
+            "import": "./dist/src/network.js"
+        },
+        "./process": {
+            "types": "./dist/src/process.d.ts",
+            "import": "./dist/src/process.js"
+        },
+        "./workers": {
+            "types": "./dist/src/workers.d.ts",
+            "import": "./dist/src/workers.js"
+        },
+        "./inspectors": {
+            "types": "./dist/src/inspectors.d.ts",
+            "import": "./dist/src/inspectors.js"
+        },
+        "./testkit": {
+            "types": "./dist/src/testkit.d.ts",
+            "import": "./dist/src/testkit.js"
+        },
+        "./packaging": {
+            "types": "./dist/src/packaging.d.ts",
+            "import": "./dist/src/packaging.js"
+        },
+        "./build": {
+            "import": "./tools/bundle.mjs",
+            "types": "./tools/bundle.d.ts"
+        },
+        "./thumbnail": {
+            "types": "./dist/src/thumbnail.d.ts",
+            "import": "./dist/src/thumbnail.js"
+        },
+        "./managedstate": {
+            "types": "./dist/src/managedstate.d.ts",
+            "import": "./dist/src/managedstate.js"
+        },
+        "./requests": {
+            "types": "./dist/src/requests.d.ts",
+            "import": "./dist/src/requests.js"
+        },
+        "./connectedws": {
+            "types": "./dist/src/connectedws.d.ts",
+            "import": "./dist/src/connectedws.js"
+        },
+        "./cache": {
+            "types": "./dist/src/cache.d.ts",
+            "import": "./dist/src/cache.js"
+        },
+        "./operations": {
+            "types": "./dist/src/operations.d.ts",
+            "import": "./dist/src/operations.js"
+        },
+        "./discovery": {
+            "types": "./dist/src/discovery.d.ts",
+            "import": "./dist/src/discovery.js"
+        }
+    },
+    "scripts": {
+        "build": "node tools/clean.mjs && tsc -p tsconfig.json && node tools/assets.mjs",
+        "check": "tsc -p tsconfig.json --noEmit",
+        "test": "npm run build && node --test tests/*.test.mjs",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "devDependencies": {
+        "@types/node": "26.6.6",
+        "esbuild": "0.28.2",
+        "prettier": "3.10.1",
+        "typescript": "7.0.2",
+        "jpeg-js": "0.4.4",
+        "pngjs": "7.0.0",
+        "omggif": "1.0.10",
+        "ws": "8.22.2",
+        "@types/ws": "8.18.2"
+    },
+    "peerDependencies": {
+        "jpeg-js": "0.4.4",
+        "pngjs": "7.0.0",
+        "omggif": "1.0.10",
+        "ws": "8.22.2",
+        "@types/ws": "8.18.2"
+    },
+    "peerDependenciesMeta": {
+        "jpeg-js": {
+            "optional": true
+        },
+        "pngjs": {
+            "optional": true
+        },
+        "omggif": {
+            "optional": true
+        },
+        "ws": {
+            "optional": true
+        },
+        "@types/ws": {
+            "optional": true
+        }
+    }
+}

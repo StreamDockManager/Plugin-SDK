@@ -1,0 +1,129 @@
+{
+    "name": "@elgato/schemas",
+    "version": "0.6.0",
+    "description": "Collection of schemas, and TypeScript declarations, to support the creation and validation of Stream Deck SDK files",
+    "keywords": [
+        "elgato",
+        "json",
+        "schemas",
+        "sdk",
+        "stream deck"
+    ],
+    "homepage": "https://github.com/elgatosf/streamdeck/tree/main/packages/schemas#readme",
+    "bugs": {
+        "url": "https://github.com/elgatosf/streamdeck/issues"
+    },
+    "license": "MIT",
+    "author": {
+        "name": "Elgato",
+        "url": "https://www.elgato.com"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/elgatosf/streamdeck.git"
+    },
+    "files": [
+        "./dist/**/*.{d.ts,js}",
+        "streamdeck/"
+    ],
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./streamdeck/plugins": {
+            "types": "./dist/streamdeck/plugins/index.d.ts",
+            "default": "./dist/streamdeck/plugins/index.js"
+        },
+        "./streamdeck/plugins/layout.json": {
+            "default": "./streamdeck/plugins/layout.json"
+        },
+        "./streamdeck/plugins/manifest.json": {
+            "default": "./streamdeck/plugins/manifest.json"
+        }
+    },
+    "scripts": {
+        "build": "wireit",
+        "build:schemas": "wireit",
+        "build:exports": "wireit",
+        "dev": "wireit",
+        "lint": "eslint . --ext .ts --max-warnings 0",
+        "test": "wireit",
+        "test:watch": "wireit",
+        "prepack": "cp ../../LICENSE ."
+    },
+    "wireit": {
+        "build": {
+            "dependencies": [
+                "build:exports",
+                "build:schemas"
+            ]
+        },
+        "build:exports": {
+            "command": "tsc --project tsconfig.build.json",
+            "files": [
+                "src/**",
+                "!src/**/__tests__/**",
+                "tsconfig.json"
+            ],
+            "output": [
+                "dist/"
+            ]
+        },
+        "build:schemas": {
+            "command": "node -r @swc-node/register ./scripts/build.ts",
+            "files": [
+                "scripts/**",
+                "src/**",
+                "!src/**/__tests__/**"
+            ],
+            "output": [
+                "streamdeck/"
+            ]
+        },
+        "dev": {
+            "command": "pnpm run build",
+            "service": true,
+            "env": {
+                "WIREIT_WATCH": "true"
+            }
+        },
+        "test": {
+            "command": "vitest run --typecheck",
+            "files": [
+                "src/**/__tests__/**",
+                "tests/**",
+                "tsconfig.json",
+                "vitest.config.ts"
+            ],
+            "dependencies": [
+                "build:schemas"
+            ]
+        },
+        "test:watch": {
+            "command": "pnpm run test",
+            "service": true,
+            "env": {
+                "WIREIT_WATCH": "true"
+            }
+        }
+    },
+    "devDependencies": {
+        "@elgato/eslint-config": "^0.3.2",
+        "@elgato/tsconfig": "workspace:^",
+        "@swc-node/register": "^1.10.9",
+        "@swc/core": "^1.10.7",
+        "@types/lodash": "^4.17.14",
+        "@types/node": "^22.10.7",
+        "@vitest/coverage-v8": "^3.1.4",
+        "ajv": "^8.17.1",
+        "eslint": "^9.39.4",
+        "lodash": "^4.17.21",
+        "nodemon": "^3.1.9",
+        "ts-json-schema-generator": "^2.3.0",
+        "typescript": "^5.7.3",
+        "vitest": "^3.1.3",
+        "wireit": "^0.14.13"
+    }
+}

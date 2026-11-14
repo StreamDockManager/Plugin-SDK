@@ -1,0 +1,965 @@
+{
+    "version": 1,
+    "fields": [
+        {
+            "key": "prefix",
+            "label": "Prefix",
+            "type": "text",
+            "default": "Count",
+            "sensitive": true
+        },
+        {
+            "key": "count",
+            "label": "Count",
+            "type": "number",
+            "default": 0,
+            "min": 0,
+            "max": 10
+        },
+        {
+            "key": "mode",
+            "label": "Mode",
+            "type": "select",
+            "default": "a",
+            "options": ["a", "b"]
+        },
+        {
+            "key": "enabled",
+            "label": "Enabled",
+            "type": "checkbox",
+            "default": false
+        },
+        {
+            "key": "headers",
+            "label": "Headers",
+            "type": "pairs",
+            "default": {}
+        },
+        {
+            "key": "file_path",
+            "type": "path",
+            "path_picker": "file"
+        },
+        {
+            "key": "folder_path",
+            "type": "path",
+            "path_picker": "folder"
+        },
+        {
+            "key": "save_path",
+            "type": "path",
+            "path_picker": "save"
+        },
+        {
+            "key": "unadorned_path",
+            "type": "path"
+        }
+    ],
+    "settings": [
+        {
+            "input": {
+                "opaque": {
+                    "retain": [1, 2]
+                },
+                "count": 3
+            },
+            "valid": true,
+            "expected": {
+                "prefix": "Count",
+                "count": 3,
+                "mode": "a",
+                "enabled": false,
+                "headers": {},
+                "opaque": {
+                    "retain": [1, 2]
+                }
+            }
+        },
+        {
+            "input": {
+                "count": false
+            },
+            "valid": false,
+            "expected": null
+        },
+        {
+            "input": {
+                "count": 11
+            },
+            "valid": false,
+            "expected": null
+        },
+        {
+            "input": {
+                "mode": "other"
+            },
+            "valid": false,
+            "expected": null
+        },
+        {
+            "input": {
+                "prefix": null
+            },
+            "valid": false,
+            "expected": null
+        },
+        {
+            "input": {
+                "opaque": {
+                    "retain": [1, 2]
+                },
+                "count": 3,
+                "prefix": "${SDK_TEST_SECRET}"
+            },
+            "valid": true,
+            "expected": {
+                "prefix": "${SDK_TEST_SECRET}",
+                "count": 3,
+                "mode": "a",
+                "enabled": false,
+                "headers": {},
+                "opaque": {
+                    "retain": [1, 2]
+                }
+            }
+        }
+    ],
+    "displays": [
+        {
+            "name": "removed-feedback",
+            "previous": {
+                "title": "Count 1",
+                "image": "icons/odd.png",
+                "state": 1,
+                "layout": "display/key.json",
+                "feedback": {
+                    "count": 1,
+                    "old": true
+                }
+            },
+            "desired": {
+                "title": "Count 1",
+                "image": "icons/odd.png",
+                "state": 1,
+                "layout": "display/key.json",
+                "feedback": {
+                    "count": 1
+                }
+            },
+            "rich": true,
+            "expected": [
+                {
+                    "event": "setFeedback",
+                    "context": "a",
+                    "payload": {
+                        "old": null
+                    }
+                }
+            ]
+        },
+        {
+            "name": "unchanged",
+            "previous": {
+                "title": "Count 1",
+                "image": "icons/odd.png",
+                "state": 1,
+                "layout": "display/key.json",
+                "feedback": {
+                    "count": 1,
+                    "old": true
+                }
+            },
+            "desired": {
+                "title": "Count 1",
+                "image": "icons/odd.png",
+                "state": 1,
+                "layout": "display/key.json",
+                "feedback": {
+                    "count": 1,
+                    "old": true
+                }
+            },
+            "rich": true,
+            "expected": []
+        },
+        {
+            "name": "state-reapplies-title-image",
+            "previous": {
+                "title": "Count 1",
+                "image": "icons/odd.png",
+                "state": 1,
+                "layout": "display/key.json",
+                "feedback": {
+                    "count": 1,
+                    "old": true
+                }
+            },
+            "desired": {
+                "title": "Count 1",
+                "image": "icons/odd.png",
+                "state": 0,
+                "layout": "display/key.json",
+                "feedback": {
+                    "count": 1,
+                    "old": true
+                }
+            },
+            "rich": true,
+            "expected": [
+                {
+                    "event": "setState",
+                    "context": "a",
+                    "payload": {
+                        "state": 0
+                    }
+                },
+                {
+                    "event": "setImage",
+                    "context": "a",
+                    "payload": {
+                        "image": "icons/odd.png",
+                        "target": 0
+                    }
+                },
+                {
+                    "event": "setTitle",
+                    "context": "a",
+                    "payload": {
+                        "title": "Count 1",
+                        "target": 0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "legacy-fallback",
+            "previous": null,
+            "desired": {
+                "title": "Count 1",
+                "image": "icons/odd.png",
+                "state": 1,
+                "layout": "display/key.json",
+                "feedback": {
+                    "count": 1,
+                    "old": true
+                }
+            },
+            "rich": false,
+            "expected": [
+                {
+                    "event": "setState",
+                    "context": "a",
+                    "payload": {
+                        "state": 1
+                    }
+                },
+                {
+                    "event": "setImage",
+                    "context": "a",
+                    "payload": {
+                        "image": "icons/odd.png",
+                        "target": 0
+                    }
+                },
+                {
+                    "event": "setTitle",
+                    "context": "a",
+                    "payload": {
+                        "title": "Count 1",
+                        "target": 0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "layout-replaces-feedback",
+            "previous": {
+                "title": "Count 1",
+                "image": "icons/odd.png",
+                "state": 1,
+                "layout": "display/key.json",
+                "feedback": {
+                    "count": 1,
+                    "old": true
+                }
+            },
+            "desired": {
+                "title": "Count 1",
+                "image": "icons/odd.png",
+                "state": 1,
+                "layout": "display/wide.json",
+                "feedback": {
+                    "count": 1
+                }
+            },
+            "rich": true,
+            "expected": [
+                {
+                    "event": "setFeedbackLayout",
+                    "context": "a",
+                    "payload": {
+                        "layout": "display/wide.json"
+                    }
+                },
+                {
+                    "event": "setFeedback",
+                    "context": "a",
+                    "payload": {
+                        "count": 1
+                    }
+                }
+            ]
+        },
+        {
+            "name": "clear-image",
+            "previous": {
+                "title": "Count 1",
+                "image": "icons/odd.png",
+                "state": 1,
+                "layout": "display/key.json",
+                "feedback": {
+                    "count": 1,
+                    "old": true
+                }
+            },
+            "desired": {
+                "title": "Count 1",
+                "image": "",
+                "state": 1,
+                "layout": "display/key.json",
+                "feedback": {
+                    "count": 1,
+                    "old": true
+                }
+            },
+            "rich": true,
+            "expected": [
+                {
+                    "event": "setImage",
+                    "context": "a",
+                    "payload": {
+                        "image": "",
+                        "target": 0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "reordered-nested-objects",
+            "previous": {
+                "feedback": {
+                    "value": {
+                        "first": 1,
+                        "nested": {
+                            "a": 2,
+                            "b": [1, 2]
+                        }
+                    }
+                }
+            },
+            "desired": {
+                "feedback": {
+                    "value": {
+                        "nested": {
+                            "b": [1, 2],
+                            "a": 2
+                        },
+                        "first": 1
+                    }
+                }
+            },
+            "rich": true,
+            "expected": []
+        },
+        {
+            "name": "boolean-to-number",
+            "previous": {
+                "feedback": {
+                    "value": {
+                        "a": true,
+                        "b": [false]
+                    }
+                }
+            },
+            "desired": {
+                "feedback": {
+                    "value": {
+                        "a": 1,
+                        "b": [0]
+                    }
+                }
+            },
+            "rich": true,
+            "expected": [
+                {
+                    "event": "setFeedback",
+                    "context": "a",
+                    "payload": {
+                        "value": {
+                            "a": 1,
+                            "b": [0]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "array-order",
+            "previous": {
+                "feedback": {
+                    "value": [1, 2]
+                }
+            },
+            "desired": {
+                "feedback": {
+                    "value": [2, 1]
+                }
+            },
+            "rich": true,
+            "expected": [
+                {
+                    "event": "setFeedback",
+                    "context": "a",
+                    "payload": {
+                        "value": [2, 1]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "missing-to-null",
+            "previous": {
+                "feedback": {}
+            },
+            "desired": {
+                "feedback": {
+                    "value": null
+                }
+            },
+            "rich": true,
+            "expected": [
+                {
+                    "event": "setFeedback",
+                    "context": "a",
+                    "payload": {
+                        "value": null
+                    }
+                }
+            ]
+        },
+        {
+            "name": "null-to-missing",
+            "previous": {
+                "feedback": {
+                    "value": null
+                }
+            },
+            "desired": {
+                "feedback": {}
+            },
+            "rich": true,
+            "expected": [
+                {
+                    "event": "setFeedback",
+                    "context": "a",
+                    "payload": {
+                        "value": null
+                    }
+                }
+            ]
+        },
+        {
+            "name": "nested-missing-to-null",
+            "previous": {
+                "feedback": {
+                    "value": {}
+                }
+            },
+            "desired": {
+                "feedback": {
+                    "value": {
+                        "a": null
+                    }
+                }
+            },
+            "rich": true,
+            "expected": [
+                {
+                    "event": "setFeedback",
+                    "context": "a",
+                    "payload": {
+                        "value": {
+                            "a": null
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "numeric-spelling",
+            "previous": {
+                "feedback": {
+                    "value": {
+                        "n": 1,
+                        "nested": [1000, 0]
+                    }
+                }
+            },
+            "desired": {
+                "feedback": {
+                    "value": {
+                        "nested": [1000.0, -0.0],
+                        "n": 1.0
+                    }
+                }
+            },
+            "rich": true,
+            "expected": []
+        },
+        {
+            "name": "different-number",
+            "previous": {
+                "feedback": {
+                    "value": 1.0
+                }
+            },
+            "desired": {
+                "feedback": {
+                    "value": 1.0000000000000002
+                }
+            },
+            "rich": true,
+            "expected": [
+                {
+                    "event": "setFeedback",
+                    "context": "a",
+                    "payload": {
+                        "value": 1.0000000000000002
+                    }
+                }
+            ]
+        }
+    ],
+    "retries": [
+        {
+            "interval_ms": 1000,
+            "failures": 1,
+            "jitter": 0,
+            "expected_ms": 2000
+        },
+        {
+            "interval_ms": 1000,
+            "failures": 4,
+            "jitter": 0.5,
+            "expected_ms": 18000
+        },
+        {
+            "interval_ms": 3600000,
+            "failures": 30,
+            "jitter": 1,
+            "expected_ms": 3600000
+        },
+        {
+            "interval_ms": 1000,
+            "failures": 30,
+            "jitter": 1,
+            "expected_ms": 900000
+        }
+    ],
+    "paths": [
+        {
+            "path": "a[0][\"b.c\"]",
+            "root": {
+                "a": [
+                    {
+                        "b.c": 42
+                    }
+                ]
+            },
+            "found": true,
+            "value": 42
+        },
+        {
+            "path": "a\\.b.0",
+            "root": {
+                "a.b": [7]
+            },
+            "found": true,
+            "value": 7
+        },
+        {
+            "path": "[\"0\"]",
+            "root": [9],
+            "found": false,
+            "value": null
+        },
+        {
+            "path": "a.missing",
+            "root": {
+                "a": {}
+            },
+            "found": false,
+            "value": null
+        },
+        {
+            "path": "[\"\\ud83d\\ude00\"]",
+            "root": {
+                "\ud83d\ude00": 42
+            },
+            "found": true,
+            "value": 42
+        }
+    ],
+    "invalid_paths": ["a..b", "a.[0]", "a[negative]", "a[", "a.", "a[]", "[\"\\q\"]"],
+    "redaction": {
+        "input": {
+            "token": "private",
+            "echo": "value abc",
+            "nested": {
+                "password": "other",
+                "Credentials": "response-only-Credentials",
+                "COOKIE": "response-only-COOKIE",
+                "api_key": "response-only-api_key",
+                "Api-Key": "response-only-Api-Key",
+                "key": "response-only-key",
+                "signature": "response-only-signature",
+                "AUTHORIZATION": "response-only-AUTHORIZATION",
+                "refresh_TOKEN": "response-only-refresh_TOKEN",
+                "PASSWORD": "response-only-PASSWORD",
+                "client_SECRET": "response-only-client_SECRET",
+                "ordinary": {
+                    "keyboard": "visible",
+                    "count": 42
+                }
+            }
+        },
+        "secrets": ["abc"],
+        "expected": {
+            "token": "[redacted]",
+            "echo": "value [redacted]",
+            "nested": {
+                "password": "[redacted]",
+                "Credentials": "[redacted]",
+                "COOKIE": "[redacted]",
+                "api_key": "[redacted]",
+                "Api-Key": "[redacted]",
+                "key": "[redacted]",
+                "signature": "[redacted]",
+                "AUTHORIZATION": "[redacted]",
+                "refresh_TOKEN": "[redacted]",
+                "PASSWORD": "[redacted]",
+                "client_SECRET": "[redacted]",
+                "ordinary": {
+                    "keyboard": "visible",
+                    "count": 42
+                }
+            }
+        }
+    },
+    "invalid_schemas": [
+        [
+            {
+                "key": "prefix",
+                "type": "text",
+                "default": null
+            }
+        ],
+        [
+            {
+                "key": "n",
+                "type": "number",
+                "min": 2,
+                "max": 1
+            }
+        ],
+        [
+            {
+                "key": "n",
+                "type": "future"
+            }
+        ],
+        [
+            {
+                "key": "n",
+                "type": "text"
+            },
+            {
+                "key": "n",
+                "type": "text"
+            }
+        ],
+        [
+            {
+                "key": "invalid-secret",
+                "label": "Invalid masked number",
+                "type": "number",
+                "sensitive": true
+            }
+        ],
+        [
+            {
+                "key": "path",
+                "type": "path",
+                "path_picker": "automatic"
+            }
+        ],
+        [
+            {
+                "key": "path",
+                "type": "number",
+                "path_picker": "file"
+            }
+        ]
+    ],
+    "state_reads": {
+        "maximum_bytes": 8388608,
+        "read_ahead_bytes": 1,
+        "payload": {
+            "opaque": {
+                "retain": [1, 2]
+            },
+            "label": "\u00e9tat"
+        },
+        "cases": [
+            {
+                "name": "versioned_at_limit",
+                "version": 1,
+                "extra_bytes": 0,
+                "valid": true
+            },
+            {
+                "name": "versioned_over_limit",
+                "version": 1,
+                "extra_bytes": 1,
+                "valid": false
+            },
+            {
+                "name": "large_file",
+                "version": 1,
+                "extra_bytes": 16777216,
+                "valid": false
+            }
+        ],
+        "rejected_load_persistence": "Any rejected load protects the saved file and live state. Only explicit successful reload or missing-file reload clears protection. Only version 1 envelopes are accepted; no migration or raw format.",
+        "missing_paths": [
+            {
+                "name": "missing-leaf",
+                "path": "state.json",
+                "error": false
+            },
+            {
+                "name": "missing-tree",
+                "path": "missing/nested/state.json",
+                "error": false
+            },
+            {
+                "name": "blocked-parent",
+                "path": "blocked/state.json",
+                "error": true
+            },
+            {
+                "name": "blocked-ancestor",
+                "path": "blocked/missing/nested/state.json",
+                "error": true
+            }
+        ]
+    },
+    "state_writes": {
+        "cases": [
+            {
+                "name": "versioned",
+                "version": 1,
+                "value": {
+                    "opaque": {
+                        "retain": ["unknown", 3]
+                    },
+                    "count": 2
+                }
+            }
+        ],
+        "serialization_passes_per_flush": 1,
+        "failed_write": "Preserve the last durable bytes and pending dirty state so a later retry can succeed"
+    },
+    "appearance_lifecycle": {
+        "action": "org.fixture.transition",
+        "settings": {
+            "opaque": {
+                "retain": [1, 2]
+            },
+            "count": 3
+        },
+        "steps": [
+            {
+                "event": {
+                    "event": "willAppear",
+                    "context": "appearance-a-1",
+                    "action": "org.fixture.transition",
+                    "payload": {
+                        "settings": {
+                            "opaque": {
+                                "retain": [1, 2]
+                            },
+                            "count": 3
+                        }
+                    }
+                },
+                "bindings": ["appearance-a-1"],
+                "render_context": "appearance-a-1"
+            },
+            {
+                "event": {
+                    "event": "willDisappear",
+                    "context": "appearance-a-1",
+                    "action": "org.fixture.transition"
+                },
+                "bindings": [],
+                "render_context": null
+            },
+            {
+                "event": {
+                    "event": "willAppear",
+                    "context": "appearance-b-1",
+                    "action": "org.fixture.transition",
+                    "payload": {
+                        "settings": {
+                            "opaque": {
+                                "retain": [1, 2]
+                            },
+                            "count": 3
+                        }
+                    }
+                },
+                "bindings": ["appearance-b-1"],
+                "render_context": "appearance-b-1"
+            },
+            {
+                "event": {
+                    "event": "willDisappear",
+                    "context": "appearance-b-1",
+                    "action": "org.fixture.transition"
+                },
+                "bindings": [],
+                "render_context": null
+            },
+            {
+                "event": {
+                    "event": "willAppear",
+                    "context": "appearance-a-2",
+                    "action": "org.fixture.transition",
+                    "payload": {
+                        "settings": {
+                            "opaque": {
+                                "retain": [1, 2]
+                            },
+                            "count": 3
+                        }
+                    }
+                },
+                "bindings": ["appearance-a-2"],
+                "render_context": "appearance-a-2"
+            },
+            {
+                "event": {
+                    "event": "willDisappear",
+                    "context": "appearance-a-1",
+                    "action": "org.fixture.transition"
+                },
+                "bindings": ["appearance-a-2"],
+                "render_context": null
+            },
+            {
+                "event": {
+                    "event": "willDisappear",
+                    "context": "appearance-a-2",
+                    "action": "org.fixture.transition"
+                },
+                "bindings": [],
+                "render_context": null
+            }
+        ]
+    },
+    "refresh_policy": {
+        "policy": {
+            "default_ms": 3600000,
+            "minimum_ms": 1000,
+            "maximum_ms": 86400000
+        },
+        "cases": [
+            {
+                "settings": {},
+                "valid": true,
+                "expected_ms": 3600000
+            },
+            {
+                "settings": {
+                    "update_interval_ms": 0
+                },
+                "valid": true,
+                "expected_ms": 0
+            },
+            {
+                "settings": {
+                    "update_interval_ms": 60000
+                },
+                "valid": true,
+                "expected_ms": 60000
+            },
+            {
+                "settings": {
+                    "update_interval_ms": 1000
+                },
+                "valid": true,
+                "expected_ms": 1000
+            },
+            {
+                "settings": {
+                    "update_interval_ms": 86400000
+                },
+                "valid": true,
+                "expected_ms": 86400000
+            },
+            {
+                "settings": {
+                    "update_interval_ms": null
+                },
+                "valid": false
+            },
+            {
+                "settings": {
+                    "update_interval_ms": true
+                },
+                "valid": false
+            },
+            {
+                "settings": {
+                    "update_interval_ms": "1000"
+                },
+                "valid": false
+            },
+            {
+                "settings": {
+                    "update_interval_ms": -1
+                },
+                "valid": false
+            },
+            {
+                "settings": {
+                    "update_interval_ms": 1.5
+                },
+                "valid": false
+            },
+            {
+                "settings": {
+                    "update_interval_ms": 999
+                },
+                "valid": false
+            },
+            {
+                "settings": {
+                    "update_interval_ms": 86400001
+                },
+                "valid": false
+            }
+        ]
+    }
+}

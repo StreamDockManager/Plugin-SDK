@@ -1,0 +1,35 @@
+{
+    "schema_version": 1,
+    "scope": "Opt-in OpenDeck device-provider wire builders; not a Manager capability or hardware driver",
+    "source": "https://github.com/nekename/OpenDeck/tree/3ddecc1ce8952a423916cf066724356267b97410/src-tauri/src",
+    "manifest_requirement": "DeviceNamespace matching the first two ASCII bytes of each device ID; host enforces ownership",
+    "registration_event": "registerPlugin",
+    "provider_events": [
+        "registerDevice",
+        "deregisterDevice",
+        "rerenderImages",
+        "keyDown",
+        "keyUp",
+        "encoderChange",
+        "encoderDown",
+        "encoderUp",
+        "touchscreenPress"
+    ],
+    "host_outputs": ["setImage", "setBrightness"],
+    "bounds": {
+        "device_id_bytes": 256,
+        "device_name_bytes": 1024,
+        "incoming_envelope_bytes": 1048576,
+        "position": "u8",
+        "ticks": "i16",
+        "touch_coordinates": "u16",
+        "brightness": "u8"
+    },
+    "limitations": [
+        "No namespace allocation or grant",
+        "No USB/HID/serial access",
+        "No automatic host detection",
+        "No default event handlers or image decoding",
+        "No automated or native-host validation performed for this implementation"
+    ]
+}

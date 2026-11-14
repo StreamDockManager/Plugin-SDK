@@ -1,0 +1,197 @@
+{
+    "version": 1,
+    "layouts": [
+        {
+            "name": "small-square",
+            "width": 72,
+            "height": 72,
+            "content": {
+                "kind": "value",
+                "primary": "42",
+                "label": "Count",
+                "detail": "Full detail"
+            },
+            "rects": {
+                "icon": [63, 2, 72, 36],
+                "line0": [7, 40, 186, 34],
+                "line1": [7, 75, 186, 21],
+                "line2": [0, 0, 0, 0]
+            }
+        },
+        {
+            "name": "regular-square",
+            "width": 112,
+            "height": 112,
+            "content": {
+                "kind": "value",
+                "primary": "42",
+                "label": "Count",
+                "detail": "Full detail"
+            },
+            "rects": {
+                "icon": [76, 2, 48, 24],
+                "line0": [6, 28, 188, 40],
+                "line1": [6, 70, 188, 14],
+                "line2": [6, 85, 188, 11]
+            }
+        },
+        {
+            "name": "wide",
+            "width": 200,
+            "height": 100,
+            "content": {
+                "kind": "progress",
+                "primary": "50%",
+                "label": "Download",
+                "detail": "Full detail",
+                "progress": 150,
+                "showProgress": true
+            },
+            "rects": {
+                "icon": [4, 26, 48, 48],
+                "line0": [58, 8, 138, 48],
+                "line1": [58, 58, 138, 18],
+                "line2": [58, 78, 138, 16]
+            },
+            "progress": 100
+        },
+        {
+            "name": "command",
+            "width": 72,
+            "height": 72,
+            "content": {
+                "kind": "command",
+                "label": "Play"
+            },
+            "rects": {
+                "icon": [45, 5, 110, 55],
+                "line0": [6, 28, 0, 0],
+                "line1": [6, 67, 188, 26],
+                "line2": [6, 85, 0, 0]
+            }
+        },
+        {
+            "name": "duplicate",
+            "width": 112,
+            "height": 112,
+            "content": {
+                "kind": "value",
+                "primary": "42",
+                "label": "42",
+                "detail": "42"
+            },
+            "rects": {
+                "line1": [6, 70, 0, 0],
+                "line2": [6, 85, 0, 0]
+            }
+        }
+    ],
+    "thumbnails": [
+        {
+            "name": "png-alpha",
+            "data": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGCAYAAAD+Bd/7AAAAOElEQVR4nKXNsQkAMAwDwTek1wiuM6U9elCb4CrdwQsUAIk6USWK24utBhUo4LUHY7Q9GKP9f3EAEfUUfEHB6BoAAAAASUVORK5CYII=",
+            "width": 4,
+            "height": 3,
+            "rgba": [
+                0, 0, 0, 0, 62, 0, 30, 255, 124, 0, 60, 128, 186, 0, 90, 0, 0, 82, 30, 255, 62, 82,
+                60, 128, 124, 82, 90, 0, 186, 82, 120, 255, 0, 164, 60, 128, 62, 164, 90, 0, 124,
+                164, 120, 255, 186, 164, 150, 128
+            ],
+            "tolerance": 0
+        },
+        {
+            "name": "jpeg",
+            "data": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIBAQECAgICAgQDAgICAgUEBAMEBgUGBgYFBgYGBwkIBgcJBwYGCAsICQoKCgoKBggLDAsKDAkKCgr/2wBDAQICAgICAgUDAwUKBwYHCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgr/wAARCAAGAAgDAREAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDm/wBjf/gkf8L/APRP3tl/D/yyP+FfJ5VxZitNzwfo+/SDz39zpLp1/wCCf//Z",
+            "width": 4,
+            "height": 3,
+            "rgba": [
+                0, 0, 2, 255, 65, 0, 34, 255, 126, 0, 63, 255, 187, 0, 93, 255, 1, 81, 28, 255, 66,
+                81, 60, 255, 127, 82, 89, 255, 187, 81, 119, 255, 0, 164, 60, 255, 64, 164, 92, 255,
+                126, 165, 121, 255, 186, 164, 151, 255
+            ],
+            "tolerance": 3
+        },
+        {
+            "name": "jpeg-progressive",
+            "data": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIBAQECAgICAgQDAgICAgUEBAMEBgUGBgYFBgYGBwkIBgcJBwYGCAsICQoKCgoKBggLDAsKDAkKCgr/2wBDAQICAgICAgUDAwUKBwYHCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgr/wgARCAAGAAgDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EABUBAQEAAAAAAAAAAAAAAAAAAAQF/9oADAMBAAIQAxAAAAE2SD//xAAXEAADAQAAAAAAAAAAAAAAAAAABQYH/9oACAEBAAEFAo3I1Z//xAAYEQACAwAAAAAAAAAAAAAAAAAABwQiMf/aAAgBAwEBPwFfMGdTT//EABcRAAMBAAAAAAAAAAAAAAAAAAADBAX/2gAIAQIBAT8Bl1mn/8QAFxABAAMAAAAAAAAAAAAAAAAAAgAhkf/aAAgBAQAGPwI2Mn//xAAVEAEBAAAAAAAAAAAAAAAAAAAAgf/aAAgBAQABPyGCH//aAAwDAQACAAMAAAAQH//EABYRAQEBAAAAAAAAAAAAAAAAAEEA4f/aAAgBAwEBPxAYO3//xAAWEQADAAAAAAAAAAAAAAAAAAAAITH/2gAIAQIBAT8QUp//xAAWEAADAAAAAAAAAAAAAAAAAAAAwdH/2gAIAQEAAT8QY7D/2Q==",
+            "width": 4,
+            "height": 3,
+            "rgba": [
+                0, 0, 2, 255, 65, 0, 34, 255, 126, 0, 63, 255, 187, 0, 93, 255, 1, 81, 28, 255, 66,
+                81, 60, 255, 127, 82, 89, 255, 187, 81, 119, 255, 0, 164, 60, 255, 64, 164, 92, 255,
+                126, 165, 121, 255, 186, 164, 151, 255
+            ],
+            "tolerance": 3
+        },
+        {
+            "name": "png-16bit",
+            "data": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACEAAAAADoj+WFAAAAFklEQVR4nGNgYGBkdGBgaGA4wPD/PwALYAOBsZvkkwAAAABJRU5ErkJggg==",
+            "width": 3,
+            "height": 2,
+            "rgba": [
+                0, 0, 0, 255, 1, 1, 1, 255, 64, 64, 64, 255, 128, 128, 128, 255, 192, 192, 192, 255,
+                255, 255, 255, 255
+            ],
+            "tolerance": 1
+        },
+        {
+            "name": "gif",
+            "data": "R0lGODdhAwACAIEAAP8AAAD/AAAAAAAAACwAAAAAAwACAAAIBwABBBAoMCAAOw==",
+            "width": 3,
+            "height": 2,
+            "rgba": [
+                255, 0, 0, 255, 0, 255, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 255, 0, 0, 255, 0,
+                255, 0, 255
+            ],
+            "tolerance": 0
+        },
+        {
+            "name": "gif-offset-first-frame",
+            "data": "R0lGODdhBgAEAIEAAP8AAAD/AAAAAAAAACwBAAEAAwACAAAIBwABBBAoMCAAOw==",
+            "width": 6,
+            "height": 4,
+            "rgba": [
+                255, 0, 0, 255, 0, 255, 0, 255, 255, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 255, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ],
+            "tolerance": 0
+        },
+        {
+            "name": "gif-first-frame",
+            "data": "R0lGODlhBAAEAIEAAP8AAAAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQACgAAACwAAAAABAAEAAAICQABCBxIsCCAgAAh+QQBCgABACwAAAAABAAEAIEAAP8AAAAAAAAAAAAICQABCBxIsCCAgAA7",
+            "width": 2,
+            "height": 2,
+            "rgba": [255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255],
+            "tolerance": 0
+        }
+    ],
+    "managed_state": {
+        "initial": {
+            "count": {
+                "value": 1
+            },
+            "removed": true
+        },
+        "next": {
+            "count": {
+                "value": 2
+            }
+        },
+        "newer": {
+            "count": {
+                "value": 3
+            }
+        },
+        "recoveries": ["applied", "not-applied"]
+    },
+    "shared_reads": {
+        "key": "shared-location",
+        "value": {
+            "temperature": 21
+        },
+        "cooldown_ms": 60000,
+        "capacity": 32
+    }
+}

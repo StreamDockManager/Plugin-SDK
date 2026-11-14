@@ -1,0 +1,2411 @@
+{
+    "version": 1,
+    "languages": ["go", "rust", "python", "javascript"],
+    "javascript_runtimes": ["nodejs"],
+    "semantics": "Equivalent capabilities and observable behavior; idiomatic APIs and explicit module/permission requirements.",
+    "contracts": [
+        "contracts/fixtures/protocol-v1.json",
+        "contracts/fixtures/authoring-v1.json",
+        "contracts/fixtures/services-v1.json",
+        "contracts/fixtures/storage-v1.json",
+        "contracts/fixtures/extensions-v1.json",
+        "contracts/fixtures/helpers-v1.json"
+    ],
+    "features": [
+        {
+            "id": "plugin-theme-rpc",
+            "implementations": {
+                "go": {
+                    "source": "Go/theme.go",
+                    "symbol": "GetPluginTheme"
+                },
+                "rust": {
+                    "source": "Rust/src/theme.rs",
+                    "symbol": "get_plugin_theme"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/runtime.py",
+                    "symbol": "get_plugin_theme"
+                },
+                "javascript": {
+                    "source": "Node/src/runtime.ts",
+                    "symbol": "getPluginTheme"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/theme_test.go",
+                        "case": "TestPluginThemeRPC",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/theme.rs",
+                        "case": "plugin_theme_rpc",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_plugin_theme.py",
+                        "case": "test_plugin_theme_rpc",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "pluginThemeRPC",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "protocol",
+            "implementations": {
+                "go": {
+                    "source": "Go/client.go",
+                    "symbol": "Run"
+                },
+                "rust": {
+                    "source": "Rust/src/runtime.rs",
+                    "symbol": "run"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/runtime.py",
+                    "symbol": "run"
+                },
+                "javascript": {
+                    "source": "Node/src/runtime.ts",
+                    "symbol": "connect"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/protocol_test.go",
+                        "case": "TestSharedHostNegotiationAndLegacyFallback",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/protocol.rs",
+                        "case": "shared_protocol_and_legacy_fallback",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_sdk.py",
+                        "case": "test_shared_protocol_fields_and_feature_gates",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "frameCapabilities",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "capabilities",
+            "implementations": {
+                "go": {
+                    "source": "Go/protocol.go",
+                    "symbol": "Supports"
+                },
+                "rust": {
+                    "source": "Rust/src/protocol.rs",
+                    "symbol": "supports"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/protocol.py",
+                    "symbol": "supports"
+                },
+                "javascript": {
+                    "source": "Node/src/protocol.ts",
+                    "symbol": "supports"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/protocol_test.go",
+                        "case": "TestSharedHostNegotiationAndLegacyFallback",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/protocol_test.go",
+                        "case": "TestSharedExplicitNegotiation",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/protocol.rs",
+                        "case": "shared_protocol_and_legacy_fallback",
+                        "required": true
+                    },
+                    {
+                        "source": "Rust/tests/protocol.rs",
+                        "case": "shared_explicit_negotiation",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_sdk.py",
+                        "case": "test_shared_protocol_fields_and_feature_gates",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_sdk.py",
+                        "case": "test_shared_explicit_negotiation",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "frameCapabilities",
+                        "required": true
+                    },
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "protocol.negotiation",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "binding-lifecycle",
+            "implementations": {
+                "go": {
+                    "source": "Go/authoring/engine.go",
+                    "symbol": "Handle"
+                },
+                "rust": {
+                    "source": "Rust/src/authoring.rs",
+                    "symbol": "handle"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/authoring.py",
+                    "symbol": "handle"
+                },
+                "javascript": {
+                    "source": "Node/src/authoring.ts",
+                    "symbol": "handle"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestSharedAuthoringFixtures",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestAppearanceLifecycleIncarnations",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_fields_display_paths_redaction_retries",
+                        "required": true
+                    },
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "appearance_lifecycle_incarnations",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_display_paths_redaction_and_retries",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_appearance_lifecycle_incarnations",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "displayMessages",
+                        "required": true
+                    },
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "appearanceLifecycleIncarnations",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "rendering",
+            "implementations": {
+                "go": {
+                    "source": "Go/authoring/renderer.go",
+                    "symbol": "DisplayMessages"
+                },
+                "rust": {
+                    "source": "Rust/src/authoring.rs",
+                    "symbol": "display_messages"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/authoring.py",
+                    "symbol": "display_messages"
+                },
+                "javascript": {
+                    "source": "Node/src/authoring.ts",
+                    "symbol": "displayMessages"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestSharedAuthoringFixtures",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_fields_display_paths_redaction_retries",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_display_paths_redaction_and_retries",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "displayMessages",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "status-layouts",
+            "implementations": {
+                "go": {
+                    "source": "Go/authoring/shared.go",
+                    "symbol": "StatusDisplay"
+                },
+                "rust": {
+                    "source": "Rust/src/authoring.rs",
+                    "symbol": "status_display"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/authoring.py",
+                    "symbol": "status_display"
+                },
+                "javascript": {
+                    "source": "Node/src/authoring.ts",
+                    "symbol": "statusDisplay"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestSharedAuthoringFixtures",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_fields_display_paths_redaction_retries",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_display_paths_redaction_and_retries",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "displayMessages",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "view-ownership",
+            "implementations": {
+                "go": {
+                    "source": "Go/authoring/views.go",
+                    "symbol": "CanUpdateView"
+                },
+                "rust": {
+                    "source": "Rust/src/authoring.rs",
+                    "symbol": "can_update"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/authoring.py",
+                    "symbol": "can_update"
+                },
+                "javascript": {
+                    "source": "Node/src/authoring.ts",
+                    "symbol": "canUpdate"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestSharedAuthoringFixtures",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_fields_display_paths_redaction_retries",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_display_paths_redaction_and_retries",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "displayMessages",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "settings",
+            "implementations": {
+                "go": {
+                    "source": "Go/settings/schema.go",
+                    "symbol": "Validate"
+                },
+                "rust": {
+                    "source": "Rust/src/settings.rs",
+                    "symbol": "validate"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/settings.py",
+                    "symbol": "validate"
+                },
+                "javascript": {
+                    "source": "Node/src/settings.ts",
+                    "symbol": "validate"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestSharedAuthoringFixtures",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_fields_display_paths_redaction_retries",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_display_paths_redaction_and_retries",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "displayMessages",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "typed-values",
+            "implementations": {
+                "go": {
+                    "source": "Go/settings/values.go",
+                    "symbol": "Number"
+                },
+                "rust": {
+                    "source": "Rust/src/settings.rs",
+                    "symbol": "number"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/settings.py",
+                    "symbol": "number"
+                },
+                "javascript": {
+                    "source": "Node/src/settings.ts",
+                    "symbol": "number"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/settings/values_test.go",
+                        "case": "TestSharedTypedValues",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/services.rs",
+                        "case": "shared_services_contract",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_services.py",
+                        "case": "test_shared_credentials_and_cache",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "services.credentials",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "storage",
+            "implementations": {
+                "go": {
+                    "source": "Go/storage/store.go",
+                    "symbol": "Store"
+                },
+                "rust": {
+                    "source": "Rust/src/storage.rs",
+                    "symbol": "Store"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/storage.py",
+                    "symbol": "Store"
+                },
+                "javascript": {
+                    "source": "Node/src/storage.ts",
+                    "symbol": "Store"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestStateDebounceRejectionAndFailureRetention",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/authoring/state_read_test.go",
+                        "case": "TestSharedStateReadLimits",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/internal/statefile/read_test.go",
+                        "case": "TestGrowingReadStopsAtCapPlusOne",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/authoring/state_read_test.go",
+                        "case": "TestOversizedLegacyRestoreCannotOverwriteDurableState",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/storage/write_test.go",
+                        "case": "TestChangedStateSerializesOnceAndRetriesExactBytes",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/storage/write_test.go",
+                        "case": "TestSharedStateWriteFixtures",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/authoring/engine_test.go",
+                        "case": "TestPersistUsesOneFrozenSnapshotPerAttempt",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/storage/current_test.go",
+                        "case": "TestVersionBoundariesPreserveState",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "state_debounce_rejection_and_failed_write_retention",
+                        "required": true
+                    },
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_state_read_limits",
+                        "required": true
+                    },
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_state_writes_preserve_exact_format_and_failed_write",
+                        "required": true
+                    },
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "state_version_boundaries_preserve_files",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_private_debounced_store_rejection_and_failed_write",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_state_read_limits",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_state_writes_serialize_once_and_preserve_failed_write",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_state_version_boundaries_preserve_files",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "stateReadLimits",
+                        "required": true
+                    },
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "stateWriteLimits",
+                        "required": true
+                    },
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "stateVersionBoundaries",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "background-work",
+            "implementations": {
+                "go": {
+                    "source": "Go/authoring/shared.go",
+                    "symbol": "StartJob"
+                },
+                "rust": {
+                    "source": "Rust/src/authoring.rs",
+                    "symbol": "background"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/authoring.py",
+                    "symbol": "background"
+                },
+                "javascript": {
+                    "source": "Node/src/authoring.ts",
+                    "symbol": "background"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/protocol_test.go",
+                        "case": "TestSharedHostNegotiationAndLegacyFallback",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/protocol.rs",
+                        "case": "shared_protocol_and_legacy_fallback",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_sdk.py",
+                        "case": "test_shared_protocol_fields_and_feature_gates",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "frameCapabilities",
+                        "required": true
+                    },
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "workerInputOwnership",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "shared-polling",
+            "implementations": {
+                "go": {
+                    "source": "Go/polling/polling.go",
+                    "symbol": "Resources"
+                },
+                "rust": {
+                    "source": "Rust/src/polling.rs",
+                    "symbol": "Resources"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/polling.py",
+                    "symbol": "Resources"
+                },
+                "javascript": {
+                    "source": "Node/src/polling.ts",
+                    "symbol": "Resources"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestSharedAuthoringFixtures",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestRefreshPolicyAndIndependentDeadlines",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_fields_display_paths_redaction_retries",
+                        "required": true
+                    },
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "refresh_policy_and_independent_deadlines",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_display_paths_redaction_and_retries",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_refresh_policy_and_independent_deadlines",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "displayMessages",
+                        "required": true
+                    },
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "refreshPolicyAndIndependentDeadlines",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "http-cache",
+            "implementations": {
+                "go": {
+                    "source": "Go/httpclient/http_cache.go",
+                    "symbol": "ValidatorCache"
+                },
+                "rust": {
+                    "source": "Rust/src/httpclient.rs",
+                    "symbol": "ValidatorCache"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/httpclient.py",
+                    "symbol": "ValidatorCache"
+                },
+                "javascript": {
+                    "source": "Node/src/httpclient.ts",
+                    "symbol": "ValidatorCache"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestSharedAuthoringFixtures",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_fields_display_paths_redaction_retries",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_display_paths_redaction_and_retries",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "displayMessages",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "service-http",
+            "implementations": {
+                "go": {
+                    "source": "Go/httpclient/service.go",
+                    "symbol": "Service"
+                },
+                "rust": {
+                    "source": "Rust/src/service.rs",
+                    "symbol": "Service"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/service.py",
+                    "symbol": "Service"
+                },
+                "javascript": {
+                    "source": "Node/src/httpclient.ts",
+                    "symbol": "Service"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/httpclient/service_test.go",
+                        "case": "TestServiceJSONBoundsRetryAndNoRedirect",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/services.rs",
+                        "case": "service_json_retry_and_payload_accounting",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_services.py",
+                        "case": "test_service_json_retry_and_tls_peer",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "new Service",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "credentials",
+            "implementations": {
+                "go": {
+                    "source": "Go/credentials/credentials.go",
+                    "symbol": "Secret"
+                },
+                "rust": {
+                    "source": "Rust/src/credentials.rs",
+                    "symbol": "secret"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/credentials.py",
+                    "symbol": "secret"
+                },
+                "javascript": {
+                    "source": "Node/src/credentials.ts",
+                    "symbol": "secret"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/credentials/credentials_test.go",
+                        "case": "TestSharedCredentials",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/services.rs",
+                        "case": "shared_services_contract",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_services.py",
+                        "case": "test_shared_credentials_and_cache",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "services.credentials",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "processes",
+            "implementations": {
+                "go": {
+                    "source": "Go/process/run.go",
+                    "symbol": "Run"
+                },
+                "rust": {
+                    "source": "Rust/src/process.rs",
+                    "symbol": "run"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/process.py",
+                    "symbol": "run"
+                },
+                "javascript": {
+                    "source": "Node/src/process.ts",
+                    "symbol": "runProcess"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/process/command_test.go",
+                        "case": "TestBackgroundCommandContextCancelsStartedProcess",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/services.rs",
+                        "case": "bounded_process_and_cancellation",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_services.py",
+                        "case": "test_bounded_process_arguments_and_cancellation",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "runProcess",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "connectors",
+            "implementations": {
+                "go": {
+                    "source": "Go/connectors/runtime.go",
+                    "symbol": "Driver"
+                },
+                "rust": {
+                    "source": "Rust/src/connectors.rs",
+                    "symbol": "Driver"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/connectors.py",
+                    "symbol": "Connector"
+                },
+                "javascript": {
+                    "source": "Node/src/connectors.ts",
+                    "symbol": "Driver"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/connectors/runtime_test.go",
+                        "case": "TestQueuedDialCommandsAreSerializedAndNotReplayed",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/services.rs",
+                        "case": "connector_commands_are_serialized_and_not_replayed",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_services.py",
+                        "case": "test_connector_commands_are_serialized_and_not_replayed",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "assert.deepEqual(commands, [2, 3, -1, 4])",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "network-accounting",
+            "implementations": {
+                "go": {
+                    "source": "Go/network.go",
+                    "symbol": "TrackConn"
+                },
+                "rust": {
+                    "source": "Rust/src/network.rs",
+                    "symbol": "track"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/network.py",
+                    "symbol": "TrackedStream"
+                },
+                "javascript": {
+                    "source": "Node/src/network.ts",
+                    "symbol": "track"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestSharedAuthoringFixtures",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_fields_display_paths_redaction_retries",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_display_paths_redaction_and_retries",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "displayMessages",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "build-cache",
+            "implementations": {
+                "go": {
+                    "source": "Go/packaging/cache.go",
+                    "symbol": "Fingerprint"
+                },
+                "rust": {
+                    "source": "Rust/src/buildcache.rs",
+                    "symbol": "fingerprint"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/buildcache.py",
+                    "symbol": "fingerprint"
+                },
+                "javascript": {
+                    "source": "Node/src/packaging.ts",
+                    "symbol": "fingerprint"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/packaging/cache_test.go",
+                        "case": "TestSharedCacheArtifacts",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/services.rs",
+                        "case": "shared_cache_artifacts",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_services.py",
+                        "case": "test_shared_cache_artifacts",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "services.cache_artifacts",
+                        "required": true
+                    }
+                ]
+            },
+            "resource_policy": "Artifact SHA-256 uses incremental reads with at most 64 KiB working input buffers; fingerprint framing, cache record schema and atomic record replacement remain unchanged."
+        },
+        {
+            "id": "build-scheduling",
+            "implementations": {
+                "go": {
+                    "source": "Go/packaging/cache.go",
+                    "symbol": "Parallel"
+                },
+                "rust": {
+                    "source": "Rust/src/buildcache.rs",
+                    "symbol": "parallel"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/buildcache.py",
+                    "symbol": "parallel"
+                },
+                "javascript": {
+                    "source": "Node/src/packaging.ts",
+                    "symbol": "parallel"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/credentials/credentials_test.go",
+                        "case": "TestSharedCredentials",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/services.rs",
+                        "case": "shared_services_contract",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_services.py",
+                        "case": "test_shared_credentials_and_cache",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "services.credentials",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "test-kit",
+            "implementations": {
+                "go": {
+                    "source": "Go/testkit/testkit.go",
+                    "symbol": "Recorder"
+                },
+                "rust": {
+                    "source": "Rust/src/testkit.rs",
+                    "symbol": "Recorder"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/testkit.py",
+                    "symbol": "Recorder"
+                },
+                "javascript": {
+                    "source": "Node/src/testkit.ts",
+                    "symbol": "Recorder"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestSharedAuthoringFixtures",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_fields_display_paths_redaction_retries",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_display_paths_redaction_and_retries",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "displayMessages",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "inspector-workflows",
+            "implementations": {
+                "go": {
+                    "source": "Go/inspectors/inspector-workflows.js",
+                    "symbol": "StreamDockManagerWorkflows"
+                },
+                "rust": {
+                    "source": "Rust/web/inspector-workflows.js",
+                    "symbol": "StreamDockManagerWorkflows"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/web/inspector-workflows.js",
+                    "symbol": "StreamDockManagerWorkflows"
+                },
+                "javascript": {
+                    "source": "Node/src/inspector-assets.ts",
+                    "symbol": "StreamDockManagerWorkflows"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/conformance_test.go",
+                        "case": "TestSharedAuthoringFixtures",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/authoring.rs",
+                        "case": "shared_fields_display_paths_redaction_retries",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_authoring.py",
+                        "case": "test_shared_display_paths_redaction_and_retries",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "displayMessages",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "typed-log-writers",
+            "implementations": {
+                "go": {
+                    "source": "Go/logging.go",
+                    "symbol": "LogStream"
+                },
+                "rust": {
+                    "source": "Rust/src/runtime.rs",
+                    "symbol": "log_stream"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/runtime.py",
+                    "symbol": "log_stream"
+                },
+                "javascript": {
+                    "source": "Node/src/runtime.ts",
+                    "symbol": "logStream"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/logging_test.go",
+                        "case": "TestTypedLogWritersRedactBeforeFramingAndKeepLegacyFallback",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/protocol.rs",
+                        "case": "typed_log_writers_redact_before_framing_and_keep_legacy_fallback",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_logging.py",
+                        "case": "test_typed_writers_redact_before_framing_and_keep_legacy_fallback",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "typedLogWritersRedactBeforeFramingAndKeepLegacyFallback",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "logging-completion-isolation",
+            "implementations": {
+                "go": {
+                    "source": "Go/completion.go",
+                    "symbol": "Dispatch"
+                },
+                "rust": {
+                    "source": "Rust/src/runtime.rs",
+                    "symbol": "dispatch"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/runtime.py",
+                    "symbol": "_dispatch"
+                },
+                "javascript": {
+                    "source": "Node/src/runtime.ts",
+                    "symbol": "dispatch"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/logging_test.go",
+                        "case": "TestLogFloodCannotConsumeActionOrDisplayCapacity",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/logging_parity_test.go",
+                        "case": "TestLoggingActionClassificationAndLegacyFraming",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/logging_parity.rs",
+                        "case": "logging_completion_and_isolation",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_logging_parity.py",
+                        "case": "test_logging_completion_and_isolation",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "loggingCompletionAndIsolation",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "network-debug-logging",
+            "implementations": {
+                "go": {
+                    "source": "Go/logging.go",
+                    "symbol": "SetNetworkDebug"
+                },
+                "rust": {
+                    "source": "Rust/src/runtime.rs",
+                    "symbol": "set_network_debug"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/runtime.py",
+                    "symbol": "set_network_debug"
+                },
+                "javascript": {
+                    "source": "Node/src/runtime.ts",
+                    "symbol": "setNetworkDebug"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/logging_parity_test.go",
+                        "case": "TestLoggingNetworkContract",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/logging_parity.rs",
+                        "case": "logging_network_contract",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_logging_parity.py",
+                        "case": "test_logging_network_contract",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "loggingNetworkContract",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "incoming-admission",
+            "implementations": {
+                "go": {
+                    "source": "Go/incoming.go",
+                    "symbol": "incomingBudget"
+                },
+                "rust": {
+                    "source": "Rust/src/runtime.rs",
+                    "symbol": "IncomingBudget"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/runtime.py",
+                    "symbol": "_IncomingBudget"
+                },
+                "javascript": {
+                    "source": "Node/src/internal/incoming.ts",
+                    "symbol": "IncomingBudget"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/incoming_test.go",
+                        "case": "TestIncomingAdmissionRetainsSelectedWorkAndCancelsWaiters",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/incoming_test.go",
+                        "case": "TestIncomingDialBatchRetiresMergedEnvelopeAfterDispatch",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/incoming_test.go",
+                        "case": "TestIncomingFloodPreservesFIFOReleaseAndShutdown",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/src/runtime.rs",
+                        "case": "incoming_admission_includes_selected_and_batched_envelopes",
+                        "required": true
+                    },
+                    {
+                        "source": "Rust/tests/runtime.rs",
+                        "case": "incoming_flood_preserves_fifo_release_and_shutdown",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_runtime.py",
+                        "case": "test_incoming_admission_includes_selected_and_batched_envelopes",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_runtime.py",
+                        "case": "test_incoming_flood_preserves_fifo_release_and_shutdown",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/incoming.mjs",
+                        "case": "incomingAdmission",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "portable-settings",
+            "implementations": {
+                "go": {
+                    "source": "Go/host_storage.go",
+                    "symbol": "NewPortableSettings"
+                },
+                "rust": {
+                    "source": "Rust/src/hoststorage.rs",
+                    "symbol": "PortableSettings"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/hoststorage.py",
+                    "symbol": "PortableSettings"
+                },
+                "javascript": {
+                    "source": "Node/src/hoststorage.ts",
+                    "symbol": "PortableSettings"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/host_storage_test.go",
+                        "case": "TestSharedHostStorageAndPortableSettings",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/hoststorage.rs",
+                        "case": "shared_base_requests_and_merge_keep_unknown_fields_and_null",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_hoststorage.py",
+                        "case": "test_shared_host_storage_and_portable_settings",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/hoststorage.mjs",
+                        "case": "hostStorageConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "host-private-storage",
+            "implementations": {
+                "go": {
+                    "source": "Go/host_storage.go",
+                    "symbol": "NewHostStore"
+                },
+                "rust": {
+                    "source": "Rust/src/hoststorage.rs",
+                    "symbol": "HostStore"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/hoststorage.py",
+                    "symbol": "HostStore"
+                },
+                "javascript": {
+                    "source": "Node/src/hoststorage.ts",
+                    "symbol": "HostStore"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/host_storage_test.go",
+                        "case": "TestSharedHostStorageAndPortableSettings",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/hoststorage.rs",
+                        "case": "storage_round_trip_preserves_fixture_values_versions_and_receipts",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_hoststorage.py",
+                        "case": "test_shared_host_storage_and_portable_settings",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/hoststorage.mjs",
+                        "case": "hostStorageConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "managed-state",
+            "implementations": {
+                "go": {
+                    "source": "Go/managedstate/state.go",
+                    "symbol": "State"
+                },
+                "rust": {
+                    "source": "Rust/src/managedstate.rs",
+                    "symbol": "ManagedState"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/managedstate.py",
+                    "symbol": "ManagedState"
+                },
+                "javascript": {
+                    "source": "Node/src/managedstate.ts",
+                    "symbol": "ManagedState"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/managedstate/state_test.go",
+                        "case": "TestSharedManagedStateRecovery",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/managedstate.rs",
+                        "case": "shared_managed_state_recovery",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_managedstate.py",
+                        "case": "test_shared_managed_state_recovery",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/managedstate.mjs",
+                        "case": "managedStateConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "discovery-workflows",
+            "implementations": {
+                "go": {
+                    "source": "Go/inspectors/inspector-workflows.js",
+                    "symbol": "DiscoveryController"
+                },
+                "rust": {
+                    "source": "Rust/web/inspector-workflows.js",
+                    "symbol": "DiscoveryController"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/web/inspector-workflows.js",
+                    "symbol": "DiscoveryController"
+                },
+                "javascript": {
+                    "source": "web/inspector-workflows.js",
+                    "symbol": "DiscoveryController"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/inspectors/discovery_test.go",
+                        "case": "TestDiscoveryPackagedController",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/extensions.rs",
+                        "case": "discovery_packaged_controller",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_extensions.py",
+                        "case": "test_discovery_packaged_controller",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/extensions.mjs",
+                        "case": "extensionsConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "service-websocket-sessions",
+            "implementations": {
+                "go": {
+                    "source": "Go/connectedws/session.go",
+                    "symbol": "Client"
+                },
+                "rust": {
+                    "source": "Rust/src/connectedws.rs",
+                    "symbol": "ServiceClient"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/connectedws.py",
+                    "symbol": "ServiceClient"
+                },
+                "javascript": {
+                    "source": "Node/src/connectedws.ts",
+                    "symbol": "ServiceClient"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/connectedws/session_test.go",
+                        "case": "TestCorrelatedOutOfOrderRepliesAndCancellation",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/connectedws.rs",
+                        "case": "shared_service_sessions",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_connectedws.py",
+                        "case": "test_shared_service_sessions",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/connectedws.mjs",
+                        "case": "connectedSessionsConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "observation-jobs",
+            "implementations": {
+                "go": {
+                    "source": "Go/authoring/observations.go",
+                    "symbol": "StartObservationJob"
+                },
+                "rust": {
+                    "source": "Rust/src/authoring.rs",
+                    "symbol": "observe"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/authoring.py",
+                    "symbol": "observe"
+                },
+                "javascript": {
+                    "source": "Node/src/authoring.ts",
+                    "symbol": "observe"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/observations_test.go",
+                        "case": "TestObservationOutcomesKeepCommandReceiptAndOriginalViewScope",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/extensions.rs",
+                        "case": "observation_receipt_isolation",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_extensions.py",
+                        "case": "test_observation_receipt_isolation",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/extensions.mjs",
+                        "case": "extensionsConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "shared-inflight-reads",
+            "implementations": {
+                "go": {
+                    "source": "Go/requests/requests.go",
+                    "symbol": "Group"
+                },
+                "rust": {
+                    "source": "Rust/src/requests.rs",
+                    "symbol": "RequestGroup"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/requests.py",
+                    "symbol": "RequestGroup"
+                },
+                "javascript": {
+                    "source": "Node/src/requests.ts",
+                    "symbol": "RequestGroup"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/requests/requests_test.go",
+                        "case": "TestSharedReadsCancellationCooldownAndRetirement",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/src/requests.rs",
+                        "case": "shared_reads_cancellation_cooldown_and_retirement",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_requests.py",
+                        "case": "test_shared_reads_cancellation_cooldown_and_retirement",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/requests.mjs",
+                        "case": "sharedReadsConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "compact-semantic-layouts",
+            "implementations": {
+                "go": {
+                    "source": "Go/authoring/compact.go",
+                    "symbol": "CompactDisplay"
+                },
+                "rust": {
+                    "source": "Rust/src/authoring.rs",
+                    "symbol": "compact_display"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/authoring.py",
+                    "symbol": "compact_display"
+                },
+                "javascript": {
+                    "source": "Node/src/authoring.ts",
+                    "symbol": "compactDisplay"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/authoring/extensions_test.go",
+                        "case": "TestSharedSemanticCompactLayouts",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/extensions.rs",
+                        "case": "shared_semantic_compact_layouts",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_extensions.py",
+                        "case": "test_shared_semantic_compact_layouts",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/extensions.mjs",
+                        "case": "extensionsConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "thumbnail-decoder",
+            "implementations": {
+                "go": {
+                    "source": "Go/thumbnail/decode.go",
+                    "symbol": "Decode"
+                },
+                "rust": {
+                    "source": "Rust/src/thumbnail.rs",
+                    "symbol": "decode"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/thumbnail.py",
+                    "symbol": "decode"
+                },
+                "javascript": {
+                    "source": "Node/src/thumbnail.ts",
+                    "symbol": "decode"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/thumbnail/conformance_test.go",
+                        "case": "TestThumbnailSharedFormatsAndLimits",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/extensions.rs",
+                        "case": "thumbnail_shared_formats_and_limits",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_extensions.py",
+                        "case": "test_thumbnail_shared_formats_and_limits",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/extensions.mjs",
+                        "case": "extensionsConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "bounded-caches",
+            "implementations": {
+                "go": {
+                    "source": "Go/cache/cache.go",
+                    "symbol": "Cache"
+                },
+                "rust": {
+                    "source": "Rust/src/cache.rs",
+                    "symbol": "Cache"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/cache.py",
+                    "symbol": "Cache"
+                },
+                "javascript": {
+                    "source": "Node/src/cache.ts",
+                    "symbol": "Cache"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/cache/cache_test.go",
+                        "case": "TestSharedCacheEvictionExpiryAndAdmission",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/cache/persistence_test.go",
+                        "case": "TestSharedCachePersistenceBatchesAndReceiptRecovery",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/helpers.rs",
+                        "case": "shared_cache",
+                        "required": true
+                    },
+                    {
+                        "source": "Rust/tests/managedstate.rs",
+                        "case": "shared_cache_persistence_batches_and_receipt_recovery",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_helpers.py",
+                        "case": "test_shared_cache",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_helpers.py",
+                        "case": "test_shared_cache_persistence",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/helpers.mjs",
+                        "case": "helpersConformance",
+                        "required": true
+                    },
+                    {
+                        "source": "Node/tests/helpers.mjs",
+                        "case": "cachePersistenceConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "image-helpers",
+            "implementations": {
+                "go": {
+                    "source": "Go/thumbnail/helpers.go",
+                    "symbol": "Render"
+                },
+                "rust": {
+                    "source": "Rust/src/thumbnail.rs",
+                    "symbol": "render"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/thumbnail.py",
+                    "symbol": "render"
+                },
+                "javascript": {
+                    "source": "Node/src/thumbnail.ts",
+                    "symbol": "render"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/thumbnail/helpers_test.go",
+                        "case": "TestSharedThumbnailHelpersAndConfigurableLimits",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/helpers.rs",
+                        "case": "shared_thumbnail_helpers",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_helpers.py",
+                        "case": "test_shared_thumbnail_helpers",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/helpers.mjs",
+                        "case": "helpersConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "backend-discovery",
+            "implementations": {
+                "go": {
+                    "source": "Go/discovery/discovery.go",
+                    "symbol": "Runner"
+                },
+                "rust": {
+                    "source": "Rust/src/discovery.rs",
+                    "symbol": "Runner"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/discovery.py",
+                    "symbol": "Runner"
+                },
+                "javascript": {
+                    "source": "Node/src/discovery.ts",
+                    "symbol": "Runner"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/discovery/discovery_test.go",
+                        "case": "TestSharedDiscoveryReplacementCancellationAndDeadlines",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/helpers.rs",
+                        "case": "shared_discovery",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_helpers.py",
+                        "case": "test_shared_discovery",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_helpers.py",
+                        "case": "test_discovery_requires_current_ids",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_helpers.py",
+                        "case": "test_discovery_duplicate_and_context_isolation",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/helpers.mjs",
+                        "case": "helpersConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "operation-history",
+            "implementations": {
+                "go": {
+                    "source": "Go/operations/operations.go",
+                    "symbol": "Ledger"
+                },
+                "rust": {
+                    "source": "Rust/src/operations.rs",
+                    "symbol": "Ledger"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/operations.py",
+                    "symbol": "Ledger"
+                },
+                "javascript": {
+                    "source": "Node/src/operations.ts",
+                    "symbol": "Ledger"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/operations/operations_test.go",
+                        "case": "TestSharedOperationHistoryPreservesUnresolved",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/helpers.rs",
+                        "case": "shared_operations",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_helpers.py",
+                        "case": "test_shared_operations",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/helpers.mjs",
+                        "case": "helpersConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "telemetry-observer-contract",
+            "implementations": {
+                "go": {
+                    "source": "Go/telemetry.go",
+                    "symbol": "TelemetrySnapshot"
+                },
+                "rust": {
+                    "source": "Rust/src/protocol.rs",
+                    "symbol": "TelemetrySnapshot"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/protocol.py",
+                    "symbol": "TelemetrySnapshot"
+                },
+                "javascript": {
+                    "source": "Node/src/protocol.ts",
+                    "symbol": "parseEvent"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/protocol_test.go",
+                        "case": "TestRequiredTelemetryObserver",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/protocol.rs",
+                        "case": "required_telemetry_observer",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_sdk.py",
+                        "case": "test_required_telemetry_observer",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/conformance.mjs",
+                        "case": "requiredTelemetryObserver",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "portable-image-data-uri",
+            "implementations": {
+                "go": {
+                    "source": "Go/portable_image.go",
+                    "symbol": "ImageDataURI"
+                },
+                "rust": {
+                    "source": "Rust/src/portable_image.rs",
+                    "symbol": "image_data_uri"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/portable_image.py",
+                    "symbol": "image_data_uri"
+                },
+                "javascript": {
+                    "source": "Node/src/portable_image.ts",
+                    "symbol": "imageDataURI"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/portable_image_test.go",
+                        "case": "TestPortableImageDataURI",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/portable_image.rs",
+                        "case": "portable_image_data_uri",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_portable_image.py",
+                        "case": "test_portable_image_data_uri",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/portable-image.test.mjs",
+                        "case": "portable image data URI",
+                        "required": true
+                    }
+                ]
+            }
+        }
+    ],
+    "json_feedback_equality": {
+        "objects": "unordered keys with structural values",
+        "arrays": "ordered structural values",
+        "booleans": "distinct from numbers",
+        "missing": "distinct from null; removals emit null",
+        "snapshots": "immutable after render",
+        "numbers": "equal mathematical decimal JSON values regardless of integer/fraction/exponent spelling; preserve distinct representable values without float rounding"
+    },
+    "http_preview_redaction": {
+        "substring_keys": [
+            "token",
+            "password",
+            "secret",
+            "credential",
+            "authorization",
+            "cookie",
+            "api-key",
+            "api_key"
+        ],
+        "exact_keys": ["key", "signature"],
+        "case_sensitive": false,
+        "known_secret_values": true,
+        "depth": 10,
+        "object_fields": 128,
+        "array_entries": 32
+    },
+    "transport_limits": {
+        "message_bytes": 1048576,
+        "frame_bytes": 1048576,
+        "accounting": "encoded UTF-8 JSON including envelope",
+        "legacy_message_bytes": 1048576,
+        "negotiated_message_bytes": 1048576,
+        "output_queue_bytes": 8388608,
+        "log_queue_bytes": 1048576,
+        "queue_items": 128,
+        "release": "upon dequeue; independent normal/log budgets",
+        "input_queue_bytes": 8388608,
+        "input_queue_items": 128,
+        "input_receive_staging_bytes": 1048576,
+        "input_release": "after handler completion or dial batch retirement; independent of dequeue",
+        "input_overflow": "cancellable backpressure, or explicit disconnect/cancellation when the transport cannot pause",
+        "receive_staging_scope": "Native readers bound raw receive staging; global JavaScript WebSocket may allocate an oversized raw message before SDK callback rejection. Accepted envelopes are bounded to 1 MiB."
+    },
+    "state_limits": {
+        "file_bytes": 8388608,
+        "read_ahead_bytes": 1,
+        "accounting": "raw file bytes before decoding the required version 1 envelope",
+        "overflow": "Reject before mutation; preserve loaded/saved state and block subsequent writes until explicit successful reload or missing-file reload after moving the protected file. Go Restore returns errors directly. Only current version 1 envelopes are accepted; no raw or migration API.",
+        "growing_files": "enforce the limit on bytes actually read, without relying on initial metadata",
+        "serialization": "Serialize each eligible write attempt once; compare and atomically publish the same encoded bytes. Retain pending dirty state and the previous durable file on failure; preserve each SDK existing format and unchanged-write behavior.",
+        "missing_paths": "Only a genuinely absent file under existing directories or a creatable missing directory tree loads as empty. Ambiguous OS NotFound errors for existing non-directory, inaccessible or dangling paths surface as storage errors and do not clear prior load protection; directory aliases are followed."
+    },
+    "inspector_limits": {
+        "message_bytes": 1048576,
+        "max_discovery_items": 8192,
+        "discovery_scopes": 32,
+        "discovery_bytes_per_fields_schema": 8388608,
+        "accounting": "2 bytes per retained UTF-16 code unit in scope/id/name/kind, plus 128 bytes per choice and 64 bytes per scope; DOM and browser socket staging are separate",
+        "overflow": "Reject oversized incoming results before replacing the current last-good scope; evict least recently used other scope caches to admit valid results",
+        "retention": "Keep compact id/name/kind choices only; clearChoices retires an explicit scope; schema ownership is weak"
+    },
+    "javascript_worker_ownership": {
+        "active_jobs": 4,
+        "pending_jobs": 32,
+        "admission": "Count-based; arbitrary structured-clone values and runtime overhead have no exact retained-byte bound",
+        "submission": "Clone ordinary values once before queueing; preserve SharedArrayBuffer sharing; already-aborted submissions do not clone",
+        "startup": "Transfer reachable ArrayBuffers in the SDK-owned snapshot through enumerable properties, views, Maps and Sets; never detach caller buffers; release parent snapshot after startup",
+        "isolation": "Each job owns a fresh module worker; cancellation retires it; no cross-job reuse",
+        "opaque_values": "Runtime clone behavior remains for opaque host values and nonenumerable properties"
+    },
+    "host_storage_limits": {
+        "message_bytes": 524288,
+        "value_bytes": 262144,
+        "pending_requests": 8,
+        "commit_mutations": 32,
+        "namespace_bytes": 128,
+        "key_bytes": 256,
+        "cursor_bytes": 512,
+        "timeout_ms": 5000,
+        "generation": "opaque canonical decimal string, at most 39 digits",
+        "revision": "canonical u64 decimal string",
+        "control_delivery": "correlate before normal callbacks; no reentrant handlers; bounded timeout if input backpressure prevents later read",
+        "private_fallback": "none",
+        "base_settings_assurance": {
+            "read": "observed",
+            "replace": "sent"
+        }
+    },
+    "thumbnail_limits": {
+        "default_input_bytes": 67108864,
+        "default_source_pixels": 32000000,
+        "output_dimension": 320,
+        "overrides": "Per-call positive safe integer input-byte and source-pixel limits; codec allocation restrictions may reject additional inputs. No global mutable limits.",
+        "decoding": "Full source decoding may retain multiple buffers. Cooperative cancellation; no partial publication."
+    },
+    "helper_limits": {
+        "cache_entries": 65536,
+        "cache_bytes": 67108864,
+        "persistent_cache_entries": 4096,
+        "persistent_cache_bytes": 8388608,
+        "persistent_cache_commit_records": 32,
+        "discovery_pending": 32,
+        "discovery_response_bytes": 262144,
+        "discovery_timeout_ms": [1, 120000],
+        "operation_entries": 65536,
+        "operation_bytes": 67108864,
+        "operation_retirement": "Only confirmed/failed, unpinned records from inactive groups; never retry external operations."
+    }
+}

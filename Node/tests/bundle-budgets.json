@@ -1,0 +1,32 @@
+{
+    "nodejs": {
+        "minimal": {
+            "bytes": 13050,
+            "gzip_bytes": 4775
+        },
+        "counter": {
+            "bytes": 19565,
+            "gzip_bytes": 7011
+        },
+        "http": {
+            "bytes": 25533,
+            "gzip_bytes": 9114
+        },
+        "storage": {
+            "bytes": 2509,
+            "gzip_bytes": 1197
+        },
+        "worker": {
+            "bytes": 1782,
+            "gzip_bytes": 1005
+        },
+        "full": {
+            "bytes": 100877,
+            "gzip_bytes": 28157
+        },
+        "hoststorage": {
+            "bytes": 17039,
+            "gzip_bytes": 6066
+        }
+    }
+}

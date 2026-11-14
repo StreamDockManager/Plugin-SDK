@@ -1,0 +1,35 @@
+name: Vendor compatibility review
+on:
+    schedule:
+        - cron: '0 12 * * 1'
+    workflow_dispatch:
+        inputs:
+            qualify_release:
+                description: Require complete reference-host evidence for a compatibility release
+                type: boolean
+                default: false
+    pull_request:
+        paths:
+            - 'contracts/vendor/**'
+            - 'tools/check_vendor_compatibility.py'
+            - 'tests/test_vendor_gate.py'
+            - 'tests/test_vendor_upstream.py'
+permissions:
+    contents: read
+jobs:
+    review:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v7.0.1
+            - uses: actions/setup-python@v7.1.0
+              with:
+                  python-version: '3.15'
+            - run: python tests/test_vendor_gate.py
+            - run: python tests/test_vendor_upstream.py
+            - run: python tools/check_vendor_compatibility.py
+            - run: python tools/check_vendor_compatibility.py --upstream
+              if: github.event_name != 'pull_request'
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+            - run: python tools/check_vendor_compatibility.py --release
+              if: github.event_name == 'workflow_dispatch' && inputs.qualify_release

@@ -1,0 +1,295 @@
+{
+    "version": 1,
+    "manager": {
+        "application": {
+            "version": "6.9.0"
+        },
+        "streamDockManager": {
+            "contract_version": 1,
+            "run_id": "fixture-run",
+            "capabilities": [
+                "plugin-protocol-v1",
+                "manager-controls-v1",
+                "telemetry-v1",
+                "surface-metadata-v1",
+                "plugin-theme-v1",
+                "plugin-settings-v1",
+                "plugin-storage-v1",
+                "desktop-input-v1",
+                "action-results-v1",
+                "network-payload-v1",
+                "plugin-logs-v1"
+            ]
+        }
+    },
+    "legacy": {
+        "application": {
+            "version": "3.10.205.0918",
+            "platform": "windows"
+        },
+        "plugin": {
+            "uuid": "org.fixture"
+        }
+    },
+    "events": [
+        {
+            "event": "deviceDidConnect",
+            "device": "fixture",
+            "deviceInfo": {
+                "name": "Fixture",
+                "size": {
+                    "columns": 3,
+                    "rows": 2
+                }
+            },
+            "future": true
+        },
+        {
+            "event": "dialRotate",
+            "context": "binding",
+            "action": "org.fixture.action",
+            "payload": {
+                "ticks": -3,
+                "pressed": true,
+                "settings": {
+                    "unknown": {
+                        "retain": true
+                    }
+                }
+            },
+            "streamDockManager": {
+                "control_id": "dial-1",
+                "width": 112,
+                "height": 112,
+                "request_id": "request-1"
+            }
+        }
+    ],
+    "gates": {
+        "subscribeTelemetry": "telemetry-v1",
+        "desktopInput": "desktop-input-v1",
+        "actionResult": "action-results-v1",
+        "setDynamicItems": "plugin-settings-v1",
+        "networkPayload": "network-payload-v1"
+    },
+    "logging": {
+        "limits": {
+            "text_bytes": 16384,
+            "queue_entries": 128,
+            "body_bytes": 65536,
+            "header_bytes": 8192,
+            "header_count": 128
+        },
+        "request": {
+            "method": "POST",
+            "url": "https://user:password@example.test/path?q=query-secret#fragment",
+            "headers": {
+                "Authorization": "Bearer header-secret",
+                "Content-Type": "application/json",
+                "X-Echo": "header-secret"
+            },
+            "body": {
+                "password": "body-secret",
+                "value": "retained"
+            }
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Set-Cookie": ["session=cookie-secret; Secure"],
+                "Content-Type": ["application/json"],
+                "X-Echo": ["header-secret"],
+                "Link": [
+                    "<https://user:link-password@example.test/one?q=link-query>, <https://name:other-password@example.test/two?k=other-query>"
+                ]
+            },
+            "body": {
+                "echo": "header-secret cookie-secret",
+                "api_key": "response-body-secret",
+                "ok": true
+            }
+        },
+        "forbidden": [
+            "header-secret",
+            "cookie-secret",
+            "body-secret",
+            "response-body-secret",
+            "query-secret",
+            "link-password",
+            "link-query",
+            "other-password",
+            "other-query"
+        ],
+        "preferences_event": {
+            "event": "didReceiveLogSettings",
+            "payload": {
+                "debug_network": true
+            }
+        },
+        "partial_json": "{\"password\":\"unrecognized-secret"
+    },
+    "incoming_admission": {
+        "bytes": 8388608,
+        "items": 128,
+        "receive_staging_bytes": 1048576,
+        "accounting": "encoded UTF-8 envelopes retained through handler completion and dial batching",
+        "overflow": "cancellable transport backpressure where supported; otherwise explicit disconnect and cancellation, never silent success",
+        "ordering": "FIFO; only existing untracked additive dial batching; release and shutdown preserve preceding accepted work unless the connection fails",
+        "receive_staging_scope": "Native readers bound raw receive staging; global JavaScript WebSocket may allocate an oversized raw message before SDK callback rejection. Accepted envelopes are bounded to 1 MiB."
+    },
+    "theme_rpc": {
+        "host": {
+            "streamDockManager": {
+                "contract_version": 1,
+                "capabilities": ["plugin-theme-v1"],
+                "theme_rpc": true
+            }
+        },
+        "response": {
+            "version": 1,
+            "resolved": "dark",
+            "revision": 1,
+            "theme": {
+                "surface": "#172138",
+                "ink": "#edf3ff",
+                "muted": "#b1bdd6",
+                "accent": "#edf3ff",
+                "meter": "#edf3ff",
+                "border": "#354461",
+                "wallpaper": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 2 2\"><path d=\"M0 0h2v2H0z\"/></svg>"
+            }
+        }
+    },
+    "negotiation": [
+        {
+            "name": "base",
+            "host": {},
+            "supported": false
+        },
+        {
+            "name": "explicit-v1",
+            "host": {
+                "streamDockManager": {
+                    "contract_version": 1,
+                    "capabilities": ["plugin-protocol-v1"]
+                }
+            },
+            "supported": true
+        },
+        {
+            "name": "missing-version",
+            "host": {
+                "streamDockManager": {
+                    "capabilities": ["plugin-protocol-v1"]
+                }
+            },
+            "supported": false
+        },
+        {
+            "name": "wrong-type",
+            "host": {
+                "streamDockManager": {
+                    "contract_version": "1",
+                    "capabilities": ["plugin-protocol-v1"]
+                }
+            },
+            "supported": false
+        },
+        {
+            "name": "null-version",
+            "host": {
+                "streamDockManager": {
+                    "contract_version": null,
+                    "capabilities": ["plugin-protocol-v1"]
+                }
+            },
+            "supported": false
+        },
+        {
+            "name": "boolean-version",
+            "host": {
+                "streamDockManager": {
+                    "contract_version": true,
+                    "capabilities": ["plugin-protocol-v1"]
+                }
+            },
+            "supported": false
+        },
+        {
+            "name": "future-version",
+            "host": {
+                "streamDockManager": {
+                    "contract_version": 2,
+                    "capabilities": ["plugin-protocol-v1"]
+                }
+            },
+            "supported": false
+        },
+        {
+            "name": "invalid-extension",
+            "host": {
+                "streamDockManager": []
+            },
+            "supported": false
+        },
+        {
+            "name": "null-extension",
+            "host": {
+                "streamDockManager": null
+            },
+            "supported": false
+        }
+    ],
+    "telemetry": [
+        {
+            "name": "polling",
+            "payload": {
+                "audio_observer": false
+            },
+            "valid": true
+        },
+        {
+            "name": "observer",
+            "payload": {
+                "audio_observer": true
+            },
+            "valid": true
+        },
+        {
+            "name": "missing",
+            "payload": {},
+            "valid": false
+        },
+        {
+            "name": "null",
+            "payload": {
+                "audio_observer": null
+            },
+            "valid": false
+        },
+        {
+            "name": "number",
+            "payload": {
+                "audio_observer": 0
+            },
+            "valid": false
+        },
+        {
+            "name": "string",
+            "payload": {
+                "audio_observer": "false"
+            },
+            "valid": false
+        },
+        {
+            "name": "array",
+            "payload": [],
+            "valid": false
+        },
+        {
+            "name": "no-payload",
+            "payload": null,
+            "valid": false
+        }
+    ]
+}

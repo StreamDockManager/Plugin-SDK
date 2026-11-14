@@ -1,0 +1,125 @@
+{
+    "version": 1,
+    "protocol_id": "plugin-storage-v1",
+    "request_event": "streamDockManagerRpcRequest",
+    "response_event": "streamDockManagerRpcResponse",
+    "operation_id": "12345678-1234-4234-8234-123456789abc",
+    "generation": "340282366920938463463374607431768211455",
+    "revision": "0",
+    "namespace": "authoring",
+    "key": "unicode-😀",
+    "value": {
+        "unknown": {
+            "keep": true
+        },
+        "false": false,
+        "zero": 0,
+        "null": null
+    },
+    "limits": {
+        "pending": 8,
+        "message_bytes": 524288,
+        "value_bytes": 262144,
+        "mutations": 32
+    },
+    "base_requests": [
+        {
+            "event": "getSettings",
+            "context": "owned-context"
+        },
+        {
+            "event": "setSettings",
+            "context": "owned-context",
+            "payload": {
+                "unknown": {
+                    "keep": true
+                },
+                "false": false,
+                "zero": 0,
+                "null": null
+            }
+        },
+        {
+            "event": "getGlobalSettings",
+            "context": "opaque-session-token"
+        },
+        {
+            "event": "setGlobalSettings",
+            "context": "opaque-session-token",
+            "payload": {
+                "unknown": {
+                    "keep": true
+                },
+                "false": false,
+                "zero": 0,
+                "null": null
+            }
+        }
+    ],
+    "semantics": {
+        "base_read": "observed",
+        "base_write": "sent",
+        "commit": "committed only after host receipt",
+        "retry": "explicit identical operation ID; no automatic protocol downgrade after enqueue",
+        "names": "case-sensitive exact Unicode strings; no normalization",
+        "version": "opaque canonical decimal strings; no SDK arithmetic"
+    },
+    "malformed_manager": [
+        null,
+        [],
+        "invalid",
+        {
+            "capabilities": "plugin-storage-v1"
+        },
+        {
+            "capabilities": ["plugin-storage-v1", 4]
+        },
+        {
+            "contract_version": "1",
+            "capabilities": ["plugin-storage-v1"]
+        }
+    ],
+    "invalid_base_payloads": [
+        null,
+        [],
+        {},
+        {
+            "settings": null
+        },
+        {
+            "settings": []
+        },
+        {
+            "settings": true
+        },
+        {
+            "settings": "invalid"
+        },
+        "invalid"
+    ],
+    "invalid_receipt_revisions": [null, 0, "", "01", "-1", "18446744073709551616"],
+    "invalid_rpc_errors": [
+        null,
+        {},
+        [],
+        ["unsupported", "invalid"],
+        {
+            "code": "unsupported"
+        },
+        {
+            "message": "invalid"
+        },
+        {
+            "code": null,
+            "message": "invalid"
+        },
+        {
+            "code": 5,
+            "message": "invalid"
+        },
+        {
+            "code": "unsupported",
+            "message": null
+        }
+    ]
+}

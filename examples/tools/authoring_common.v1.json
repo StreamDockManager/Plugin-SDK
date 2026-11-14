@@ -1,0 +1,9 @@
+{
+    "version": 1,
+    "license": "MIT",
+    "source": "StreamDockManager-Plugins-SDK/examples/tools",
+    "sha256": {
+        "authoring_common.py": "757a28430a835cefd7d0456f0410a5e2cf93ad0bd702677b7f7f35e38c5bd94b",
+        "authoring_common.LICENSE": "33548b097882c6b974b671660cf52efebd44b1f8ecf25e0ba72ea435a0f96d6d"
+    }
+}

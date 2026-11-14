@@ -1,0 +1,55 @@
+{
+    "id": "plugin-display",
+    "items": [
+        {
+            "key": "icon",
+            "type": "pixmap",
+            "rect": [2, 4, 72, 88]
+        },
+        {
+            "key": "line0",
+            "type": "text",
+            "rect": [78, 8, 120, 28],
+            "font": {
+                "size": 8
+            }
+        },
+        {
+            "key": "line1",
+            "type": "text",
+            "rect": [78, 36, 120, 28],
+            "font": {
+                "size": 8
+            }
+        },
+        {
+            "key": "line2",
+            "type": "text",
+            "rect": [78, 64, 120, 28],
+            "font": {
+                "size": 8
+            }
+        },
+        {
+            "key": "indicator",
+            "type": "bar",
+            "rect": [4, 97, 192, 3],
+            "range": {
+                "min": 0,
+                "max": 100
+            }
+        }
+    ],
+    "streamDockManager": {
+        "displayPalette": true,
+        "text_groups": [
+            {
+                "key": "live_text",
+                "label": "Live text",
+                "source": "title",
+                "keys": ["line0", "line1", "line2"],
+                "rect": [78, 8, 120, 84]
+            }
+        ]
+    }
+}

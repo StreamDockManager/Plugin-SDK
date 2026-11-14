@@ -1,0 +1,66 @@
+{
+    "version": 1,
+    "description": "Offline bundle validation contract. SHA-256 keys are project-relative or sdk:/asset: inputs; outputs remain within the bundle, including symlinks. No runtime execution is required.",
+    "cases": [
+        {
+            "name": "valid",
+            "mutation": "none",
+            "accept": true
+        },
+        {
+            "name": "changed project input",
+            "mutation": "input",
+            "accept": false
+        },
+        {
+            "name": "changed SDK input",
+            "mutation": "sdk",
+            "accept": false
+        },
+        {
+            "name": "changed asset",
+            "mutation": "asset",
+            "accept": false
+        },
+        {
+            "name": "changed output",
+            "mutation": "output",
+            "accept": false
+        },
+        {
+            "name": "missing input",
+            "mutation": "missing-input",
+            "accept": false
+        },
+        {
+            "name": "missing output",
+            "mutation": "missing-output",
+            "accept": false
+        },
+        {
+            "name": "tree shaking required",
+            "mutation": "tree-shaking",
+            "accept": false
+        },
+        {
+            "name": "parent output escape",
+            "mutation": "escape",
+            "accept": false
+        },
+        {
+            "name": "symlink output escape",
+            "mutation": "symlink",
+            "accept": false
+        },
+        {
+            "name": "missing optional input",
+            "mutation": "optional-missing",
+            "accept": true
+        },
+        {
+            "name": "optional input appeared",
+            "mutation": "optional-appeared",
+            "accept": false
+        }
+    ]
+}

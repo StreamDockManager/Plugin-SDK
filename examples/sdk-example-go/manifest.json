@@ -1,0 +1,83 @@
+{
+    "UUID": "app.streamdockmanager.plugins.examples.go",
+    "Name": "Go SDK Counter",
+    "Version": "0.1.0",
+    "Author": "Stream Dock Manager contributors",
+    "Description": "SDK counter with live, individually styleable display data",
+    "Icon": "icon.png",
+    "SDKVersion": 1,
+    "Category": "SDK Examples",
+    "CategoryIcon": "icon.png",
+    "CodePath": "bin/sdk-example-go-plugin",
+    "CodePathWin": "bin/sdk-example-go-plugin.exe",
+    "Actions": [
+        {
+            "UUID": "app.streamdockmanager.plugins.examples.go.counter",
+            "Name": "Counter",
+            "Icon": "icon.png",
+            "States": [
+                {
+                    "Image": "icons/even.png",
+                    "Title": "Even",
+                    "TitleAlignment": "center"
+                },
+                {
+                    "Image": "icons/odd.png",
+                    "Title": "Odd",
+                    "TitleAlignment": "center"
+                }
+            ],
+            "Controllers": ["Keypad"],
+            "PropertyInspectorPath": "inspector.html"
+        }
+    ],
+    "StreamDockManager": {
+        "ManifestDialect": "vsd",
+        "Capabilities": {
+            "version": 1,
+            "id": "app.streamdockmanager.plugins.examples.go",
+            "plugin_version": "0.1.0",
+            "theme_protocol": 1,
+            "settings_protocol": 1,
+            "input_protocol": 0,
+            "icon": {
+                "light": "icon.png",
+                "dark": "icon.png"
+            },
+            "actions": {
+                "app.streamdockmanager.plugins.examples.go.counter": {
+                    "icon": {
+                        "light": "icon.png",
+                        "dark": "icon.png"
+                    },
+                    "states": [
+                        {
+                            "light": "icons/even.png",
+                            "dark": "icons/even.png"
+                        },
+                        {
+                            "light": "icons/odd.png",
+                            "dark": "icons/odd.png"
+                        }
+                    ],
+                    "settings": "inspector.html",
+                    "feedback_layout": "display/counter.json",
+                    "control_types": ["button"]
+                }
+            }
+        }
+    },
+    "OS": [
+        {
+            "Platform": "mac",
+            "MinimumVersion": "13"
+        },
+        {
+            "Platform": "windows",
+            "MinimumVersion": "10"
+        },
+        {
+            "Platform": "linux"
+        }
+    ]
+}

@@ -1,0 +1,27 @@
+# Generated from web, shared contracts and workspace palette tokens.
+Go/inspectors/**
+Go/testdata/**
+Rust/web/**
+Rust/testdata/**
+Python/stream_dock_manager_sdk/web/**
+examples/tools/audit.py
+examples/assets/inspector-sdk.js
+examples/assets/inspector-fields.js
+examples/assets/palette.v1.json
+examples/assets/display/key*.json
+examples/assets/display/wide*.json
+examples/assets/icons/unavailable*.svg
+web/palette.v1.json
+web/display/key-light.json
+web/display/key-dark.json
+web/display/wide-light.json
+web/display/wide-dark.json
+artifacts/**
+.cache/**
+**/build/**
+**/dist/**
+**/target/**
+**/.venv/**
+
+# Revision-pinned upstream evidence must remain byte-identical.
+contracts/vendor/elgato/

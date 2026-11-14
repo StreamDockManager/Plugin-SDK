@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+    <meta charset="utf-8" />
+    <title>Counter settings</title>
+    <style>
+        body {
+            font: 14px system-ui;
+            margin: 20px;
+        }
+        label,
+        input,
+        button {
+            display: block;
+            margin: 10px 0;
+        }
+        input,
+        button {
+            font: inherit;
+            padding: 8px;
+        }
+    </style>
+    <div id="fields"></div>
+    <button id="reset">Reset counter</button>
+    <p id="status" role="status">Waiting for host…</p>
+    <button id="save">Save settings</button>
+    <button id="cancel">Discard changes</button>
+    <script src="inspector-sdk.js"></script>
+    <script src="inspector-fields.js"></script>
+    <script src="inspector.js"></script>
+</html>

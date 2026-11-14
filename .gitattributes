@@ -1,0 +1,5 @@
+# Use the same checkout bytes for tests, generated copies, and packaging on every OS
+* text=auto eol=lf
+
+# Keep pinned upstream reference sources byte-for-byte, including their original line endings
+contracts/vendor/elgato/** -text !eol

@@ -1,0 +1,66 @@
+[package]
+name = "stream-dock-manager-plugin-sdk"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+license = "MIT"
+description = "Stream Dock Manager plugin SDK with conservative VSD Craft compatibility"
+repository = "https://github.com/StreamDockManager/Plugin-SDK"
+readme = "README.md"
+include = [
+  "src/**",
+  "web/**",
+  "tests/**",
+  "testdata/**",
+  "examples/**",
+  "Cargo.toml",
+  "Cargo.lock",
+  "README.md",
+  "LICENSE"
+]
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+tungstenite = "=0.30.0"
+mio = { version = "=1.2.4", features = ["os-poll", "net"] }
+base64 = "0.23.1"
+sha2 = "=0.11.1"
+uuid = { version = "=1.29.2", features = ["v4"] }
+
+[dependencies.reqwest]
+version = "=0.13.5"
+optional = true
+default-features = false
+features = ["blocking", "rustls"]
+
+[dependencies.httpdate]
+version = "=1.0.3"
+
+[dependencies.rustls]
+version = "=0.23.46"
+optional = true
+
+[dependencies.image]
+version = "=0.25.10"
+optional = true
+default-features = false
+features = ["jpeg", "png"]
+
+[dependencies.gif]
+version = "0.14.2"
+optional = true
+
+[dependencies.rustls-native-certs]
+version = "0.8.5"
+optional = true
+
+[dependencies.url]
+version = "=2.5.8"
+optional = true
+
+[features]
+service-websocket = ["dep:rustls", "dep:rustls-native-certs", "dep:url"]
+thumbnail = ["dep:image", "dep:gif"]
+http = ["dep:reqwest"]
+testkit-tls = ["dep:rustls"]

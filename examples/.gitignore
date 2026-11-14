@@ -1,0 +1,6 @@
+artifacts/
+**/.venv/
+**/build/
+**/dist/
+**/target/
+**/__pycache__/

@@ -1,0 +1,33 @@
+name: Publish Release
+on:
+    workflow_dispatch:
+        inputs:
+            prepare_run_id:
+                description: Successful main Prepare Release run ID to publish unchanged
+                required: true
+                type: string
+permissions:
+    contents: read
+concurrency:
+    group: sdk-publish-release
+    cancel-in-progress: false
+jobs:
+    publish:
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+        runs-on: ubuntu-24.04
+        timeout-minutes: 30
+        permissions:
+            contents: write
+            actions: read
+        steps:
+            - uses: actions/checkout@v7.0.1
+              with:
+                  persist-credentials: false
+            - uses: actions/setup-python@v7.1.0
+              with:
+                  python-version: '3.15'
+            - name: Verify and publish prepared downloads
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  PREPARE_RUN_ID: ${{ inputs.prepare_run_id }}
+              run: python tools/release.py publish --run-id "$PREPARE_RUN_ID"

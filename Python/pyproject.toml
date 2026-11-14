@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools==84.2.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stream-dock-manager-plugin-sdk"
+version = "0.1.0"
+description = "Stream Dock Manager plugin SDK with conservative VSD Craft compatibility"
+requires-python = ">=3.11"
+license = "MIT"
+readme = "README.md"
+dependencies = ["wsproto==1.3.2", "h11==0.16.0"]
+
+[project.optional-dependencies]
+thumbnail = ["Pillow==13.0.0"]
+
+[project.urls]
+Repository = "https://github.com/StreamDockManager/Plugin-SDK"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["stream_dock_manager_sdk*"]
+namespaces = false
+
+[tool.setuptools.exclude-package-data]
+"*" = ["__pycache__/*", "*.pyc"]
+
+[tool.setuptools.package-data]
+stream_dock_manager_sdk = [
+  "web/*.js",
+  "web/*.css",
+  "web/*.html",
+  "web/*.json",
+  "web/display/*.json",
+  "web/icons/*.svg",
+  "testdata/tls/*.pem"
+]

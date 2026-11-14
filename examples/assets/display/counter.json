@@ -1,0 +1,30 @@
+{
+    "id": "sdk-counter",
+    "background": "#00000000",
+    "items": [
+        {
+            "key": "icon",
+            "label": "State icon",
+            "type": "pixmap",
+            "rect": [72, 0, 56, 35]
+        },
+        {
+            "key": "prefix",
+            "label": "Prefix",
+            "type": "text",
+            "rect": [4, 38, 192, 24],
+            "font": {
+                "size": 8
+            }
+        },
+        {
+            "key": "count",
+            "label": "Count",
+            "type": "text",
+            "rect": [4, 65, 192, 31],
+            "font": {
+                "size": 16
+            }
+        }
+    ]
+}

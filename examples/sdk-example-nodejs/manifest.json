@@ -1,0 +1,75 @@
+{
+    "UUID": "app.streamdockmanager.plugins.examples.nodejs",
+    "Name": "Nodejs SDK Counter",
+    "Version": "0.1.0",
+    "Author": "Stream Dock Manager contributors",
+    "Description": "SDK counter with live, individually styleable display data",
+    "Icon": "icon.png",
+    "SDKVersion": 1,
+    "Category": "SDK Examples",
+    "CategoryIcon": "icon.png",
+    "CodePath": "main.mjs",
+    "CodePathWin": "main.mjs",
+    "Actions": [
+        {
+            "UUID": "app.streamdockmanager.plugins.examples.nodejs.counter",
+            "Name": "Counter",
+            "Icon": "icon.png",
+            "States": [
+                {
+                    "Image": "icons/even.svg",
+                    "Title": "Even",
+                    "TitleAlignment": "middle"
+                },
+                {
+                    "Image": "icons/odd.svg",
+                    "Title": "Odd",
+                    "TitleAlignment": "middle"
+                }
+            ],
+            "Controllers": ["Keypad"],
+            "PropertyInspectorPath": "inspector.html"
+        }
+    ],
+    "StreamDockManager": {
+        "ManifestDialect": "vsd",
+        "Runtime": {
+            "Kind": "nodejs",
+            "Version": ">=22, <27",
+            "Channel": "lts"
+        },
+        "Capabilities": {
+            "version": 1,
+            "id": "app.streamdockmanager.plugins.examples.nodejs",
+            "plugin_version": "0.1.0",
+            "theme_protocol": 1,
+            "settings_protocol": 1,
+            "input_protocol": 0,
+            "icon": {
+                "light": "icon.png",
+                "dark": "icon.png"
+            },
+            "actions": {
+                "app.streamdockmanager.plugins.examples.nodejs.counter": {
+                    "icon": {
+                        "light": "icon.png",
+                        "dark": "icon.png"
+                    },
+                    "states": [
+                        {
+                            "light": "icons/even.svg",
+                            "dark": "icons/even.svg"
+                        },
+                        {
+                            "light": "icons/odd.svg",
+                            "dark": "icons/odd.svg"
+                        }
+                    ],
+                    "settings": "inspector.html",
+                    "feedback_layout": "display/counter.json",
+                    "control_types": ["button"]
+                }
+            }
+        }
+    }
+}

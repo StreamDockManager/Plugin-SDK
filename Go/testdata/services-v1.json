@@ -1,0 +1,125 @@
+{
+    "version": 1,
+    "fingerprints": [
+        {
+            "inputs": {
+                "source": "hello",
+                "asset": "world"
+            },
+            "configuration": {
+                "target": "test",
+                "version": 1
+            },
+            "expected": "f73fcc6de1b2f4c132f6908cc45992575f2f2909b4be474e797216d9139f6991"
+        },
+        {
+            "inputs": {
+                "source": "changed",
+                "asset": "world"
+            },
+            "configuration": {
+                "target": "test",
+                "version": 1
+            },
+            "expected": "7a49b3e0e974bbbcaa59653662b23307697315028f3266d72c161f8497c45869"
+        }
+    ],
+    "credentials": [
+        {
+            "settings": {
+                "password": "${SDK_SERVICE_SECRET}"
+            },
+            "key": "password",
+            "lookup": {
+                "SDK_SERVICE_SECRET": "exact+secret"
+            },
+            "value": "exact+secret"
+        },
+        {
+            "settings": {
+                "password": "prefix-${SDK_SERVICE_SECRET}"
+            },
+            "key": "password",
+            "lookup": {
+                "SDK_SERVICE_SECRET": "value"
+            },
+            "invalid": true
+        },
+        {
+            "settings": {
+                "password": "${UNSET}"
+            },
+            "key": "password",
+            "lookup": {},
+            "invalid": true
+        }
+    ],
+    "arguments": ["literal $HOME;`command`", "spaces and \"quotes\"", "Unicode 世界"],
+    "typed_values": [
+        {
+            "input": {
+                "n": 2.5,
+                "s": "value",
+                "b": true
+            },
+            "number": 2.5,
+            "string": "value",
+            "boolean": true
+        },
+        {
+            "input": {
+                "n": "-3.25",
+                "s": "",
+                "b": "true"
+            },
+            "number": -3.25,
+            "string": "fallback",
+            "boolean": false
+        },
+        {
+            "input": {
+                "n": true,
+                "s": 2,
+                "b": false
+            },
+            "number": 99,
+            "string": "fallback",
+            "boolean": false
+        },
+        {
+            "input": {},
+            "number": 99,
+            "string": "fallback",
+            "boolean": false
+        }
+    ],
+    "cache_artifacts": {
+        "byte_pattern": [0, 255, 195, 169],
+        "cases": [
+            {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+                "bytes": 1,
+                "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+            },
+            {
+                "bytes": 65535,
+                "sha256": "5132c99d815f02f123caf2e9e4a5a4fd892d644dd469d195f2952ce2e4890dc8"
+            },
+            {
+                "bytes": 65536,
+                "sha256": "1b0d9ef6004d9f76529fc0863b07115d1d7ec026a35a291c951a5fb02347a035"
+            },
+            {
+                "bytes": 65537,
+                "sha256": "297687f8dc08312b43f6af49c280200b069f894f3f84a3ffd9bb60cd3421f31a"
+            },
+            {
+                "bytes": 8388625,
+                "sha256": "b00582a1960b6abf37c410260a7a616195565331bbb966a909bf76b2a4ded7b6"
+            }
+        ]
+    }
+}

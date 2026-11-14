@@ -1,0 +1,8 @@
+dist/
+node_modules/
+package-lock.json
+src/inspector-assets.ts
+src/display-layouts.ts
+src/test-certificates.ts
+
+src/internal/settings-validation.ts
