@@ -120,13 +120,18 @@ func (c *Cache[T]) Trim(reserved int, now int64) ([]string, error) {
 		return nil, fmt.Errorf("invalid cache reservation")
 	}
 	out := []string{}
-	for key, e := range c.entries {
-		if e.Expires != 0 && e.Expires <= now {
-			c.Delete(key)
-			out = append(out, key)
+	if now > 0 {
+		for key, e := range c.entries {
+			if e.Expires != 0 && e.Expires <= now {
+				c.Delete(key)
+				out = append(out, key)
+			}
 		}
+		sort.Strings(out)
 	}
-	sort.Strings(out)
+	if c.bytes+reserved <= c.limit && len(c.entries) <= c.capacity {
+		return out, nil
+	}
 	entries, _ := c.Entries(now)
 	for _, e := range entries {
 		if c.bytes+reserved <= c.limit && len(c.entries) <= c.capacity {

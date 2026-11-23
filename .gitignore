@@ -10,3 +10,4 @@ target/
 !examples/sdk-example-rust/Cargo.lock
 .DS_Store
 node_modules/
+.vscode

@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import { project } from './settings.js';
 import { envelope as discoveryEnvelope } from './discovery.js';
 import { updateInterval, NEVER } from './polling.js';
@@ -119,7 +120,10 @@ export class Connector extends Plugin {
         return s;
     }
     // Subscribe a binding to its shared connector state
+    private demandChanged = true;
     private watch(): void {
+        if (!this.demandChanged) return;
+        this.demandChanged = false;
         const demand: Settings[] = [];
         for (const id of this.bindings.keys()) {
             const s = this.bindingSettings(id);
@@ -315,7 +319,7 @@ export class Connector extends Plugin {
         this.background(
             client,
             'connector-work',
-            id,
+            '',
             async (signal) => {
                 try {
                     return {
@@ -383,23 +387,62 @@ export class Connector extends Plugin {
     }
     // Dispatch a host event to the connector binding
     async handle(client: Client, event: Event): Promise<void> {
-        if (['didReceiveSettings', 'didReceiveGlobalSettings'].includes(event.event)) this.reset();
+        const id = event.context ?? '';
+        if (
+            [
+                'willAppear',
+                'willDisappear',
+                'didReceiveSettings',
+                'didReceiveGlobalSettings',
+            ].includes(event.event) ||
+            (!this.bindings.has(id) &&
+                ['keyDown', 'keyUp', 'dialDown', 'dialUp', 'dialRotate', 'touchTap'].includes(
+                    event.event,
+                ))
+        )
+            this.demandChanged = true;
+        const shared = this.options.sharedKeys;
+        const changed =
+            event.event === 'didReceiveGlobalSettings' &&
+            (!shared?.length ||
+                shared.some(
+                    (key) => !isDeepStrictEqual(this.globals[key], event.payload?.settings?.[key]),
+                ));
+        if (changed || (event.event === 'didReceiveSettings' && !shared?.length)) this.reset();
+        else if (event.event === 'didReceiveSettings' || event.event === 'willDisappear') {
+            this.cancelBinding(id);
+            if (event.event === 'willDisappear') this.resources.unwatch(id);
+        }
         await super.handle(client, event);
         if (event.event === 'willDisappear') {
-            this.resources.unwatch(event.context ?? '');
-            this.messages.delete(event.context ?? '');
             if (!this.bindings.size) this.reset();
         }
         if (
             event.event === 'propertyInspectorDidDisappear' &&
             !this.bindings.has(event.context ?? '')
         ) {
-            this.queue = this.queue.filter((q) => {
-                if (q.context !== event.context) return true;
-                q.receipt.finish(Error('Cancelled'));
-                return false;
-            });
-            if (this.activeContext === event.context) this.reset();
+            this.cancelBinding(id);
+        }
+        this.watch();
+    }
+    protected override cancelOnGlobalSettings(key: string): boolean {
+        return key !== 'connector-work';
+    }
+
+    private cancelBinding(id: string): void {
+        this.messages.delete(id);
+        this.queue = this.queue.filter((q) => {
+            if (q.context !== id) return true;
+            q.receipt.finish(Error('Cancelled'));
+            return false;
+        });
+        if (this.activeContext === id && this.busy && !this.activeResource) {
+            this.cancelJob('connector-work');
+            this.activeReceipt?.finish(Error('Cancelled'));
+            this.activeReceipt = undefined;
+            this.activeDeadline = undefined;
+            this.activeContext = '';
+            this.busy = false;
         }
     }
     // Run connector work whose deadline has arrived
@@ -443,6 +486,8 @@ export class Connector extends Plugin {
     }
     // Clear transient connector state for a new owner
     private reset(): void {
+        this.activeContext = '';
+        this.demandChanged = true;
         this.cancelJob('connector-work');
         this.activeReceipt?.finish(Error('Cancelled'));
         this.activeReceipt = undefined;

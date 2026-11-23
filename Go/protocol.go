@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 )
 
 // HostInfo retains the host's raw fields so newer metadata remains available
@@ -97,6 +98,15 @@ func (c *Client) Settings(ctx context.Context, binding string, value any) error 
 // Request the current binding settings
 func (c *Client) GetSettings(ctx context.Context, binding string) error {
 	return c.Send(ctx, Event{Event: "getSettings", Context: binding})
+}
+
+// RequestVSDCraftSettings sends the documented VSD Craft backend request using the registration UUID
+// Handle didReceiveSettings as an event; the request does not select an action binding
+func (c *Client) RequestVSDCraftSettings(ctx context.Context) error {
+	if strings.TrimSpace(c.identity) == "" {
+		return fmt.Errorf("VSD Craft settings request requires a registration UUID")
+	}
+	return c.Send(ctx, Event{Event: "getSettings", Context: c.identity})
 }
 
 // Replace plugin-global portable settings

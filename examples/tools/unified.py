@@ -11,6 +11,8 @@ import struct
 import tempfile
 import zipfile
 
+from vault_setup import validate_setup_slots
+
 TRIPLES = {
     "darwin/amd64": "x86_64-apple-darwin", "darwin/arm64": "aarch64-apple-darwin",
     "linux/amd64": "x86_64-unknown-linux-gnu", "linux/arm64": "aarch64-unknown-linux-gnu",
@@ -84,6 +86,7 @@ def read_package(path):
             raise ValueError("Expected one plugin bundle")
     check_namespace(contents)
     manifest = json.loads(contents["manifest.json"])
+    validate_setup_slots(manifest)
     if next(iter(roots)) != manifest.get("UUID", "") + ".sdPlugin":
         raise ValueError("Bundle identity mismatch")
     return contents, modes, manifest

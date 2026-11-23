@@ -14,6 +14,25 @@ class LoggingParityTests(unittest.TestCase):
     def client(self):
         return Client(HostInfo(FIXTURE['manager']))
 
+    def test_optional_network_demand(self):
+        from copy import deepcopy
+        demand = FIXTURE['network_demand']
+        for enabled in (False, True):
+            host = deepcopy(FIXTURE['manager'])
+            if not enabled: host['streamDockManager']['capabilities'].remove(demand['capability'])
+            client = Client(HostInfo(host))
+            class Observer(Handler):
+                calls = 0
+                def handle(self, client, event): self.calls += 1
+            handler = Observer()
+            client._dispatch(handler, Event.parse(demand['request']))
+            self.assertEqual(handler.calls, int(not enabled))
+            frames = client.drain()
+            self.assertEqual(len(frames), int(enabled))
+            if enabled:
+                self.assertEqual(frames[0]['event'], demand['response'])
+                self.assertEqual(frames[0]['payload']['run_id'], 'fixture-run')
+
     # Verify logging completion and isolation
     def test_logging_completion_and_isolation(self):
         client = self.client()

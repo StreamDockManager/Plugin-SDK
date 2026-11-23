@@ -16,6 +16,42 @@ export class RPCError extends Error {
         super(message);
     }
 }
+const privateServiceCodes = new Set([
+    'needs_setup',
+    'vault_locked',
+    'permission_denied',
+    'not_declared',
+    'operation_unavailable',
+    'unsupported',
+    'invalid_request',
+    'invalid_response',
+    'busy',
+    'quota',
+    'timeout',
+    'stale_revision',
+    'slot_conflict',
+    'cancelled',
+    'rate_limited',
+    'cancelled_before_commit',
+    'indeterminate',
+    'activation_required',
+    'activation_expired',
+    'no_text',
+    'unsupported_format',
+    'invalid_encoding',
+    'too_large',
+    'clipboard_changed',
+    'clipboard_access',
+]);
+export function privateError(error: unknown): never {
+    if (error instanceof UnsupportedFeatureError) throw error;
+    const code =
+        error instanceof RPCError && privateServiceCodes.has(error.code)
+            ? error.code
+            : 'operation_unavailable';
+    throw new RPCError(code, 'Manager request did not complete');
+}
+
 interface Pending {
     protocol?: string;
     // Settle a control request and release its pending resources

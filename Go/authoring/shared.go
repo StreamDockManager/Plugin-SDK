@@ -108,12 +108,22 @@ func (e *Engine) StartJob(ctx context.Context, id string, work func(context.Cont
 		default:
 		}
 	})
+	secrets := e.redaction.current
+	if done := apply; done != nil {
+		apply = func(ctx context.Context, c *sdk.Client, result JobResult, job BackgroundJob) error {
+			release := e.redaction.pin(secrets)
+			defer release()
+			return done(ctx, c, result, job)
+		}
+	}
 	e.Jobs[id] = BackgroundJob{Cancel: cancel, StopCancel: stopCancel, Generation: generation, Complete: complete, ActionCtx: ctx, Apply: apply}
 	e.ResultsText[id] = "Working…"
 	e.Checked[id] = e.Time()
 	// Workers return immutable results and leave binding mutation to the owner loop
 	if !e.Probes.Submit(jobCtx, func() {
 		defer func() { stopCancel(); cancel() }()
+		release := e.redaction.pin(secrets)
+		defer release()
 		text, value, err := work(jobCtx)
 		if jobCtx.Err() != nil {
 			complete(jobCtx.Err())
@@ -215,7 +225,11 @@ func (e *Engine) SendDisplayView(ctx context.Context, c *sdk.Client, id string, 
 		previous = &old
 	}
 	// A nil client is only used by tests with a custom renderer
-	for _, message := range DisplayMessages(id, previous, view, true, states) {
+	messages := DisplayMessages(id, previous, view, true, states)
+	if previous != nil && len(messages) == 0 && previous.State == view.State && previous.Layout == view.Layout {
+		return nil
+	}
+	for _, message := range messages {
 		if err := c.Send(ctx, message); err != nil {
 			return err
 		}
@@ -522,6 +536,9 @@ func (e *Engine) SendDisplay(ctx context.Context, c *sdk.Client, id string, stat
 	if !e.CanUpdateView(ctx, id) {
 		return nil
 	}
+	if e.Feature.FilterStatus != nil {
+		status = e.Feature.FilterStatus(ctx, c, id, status)
+	}
 	if previous, known := e.bindingState(id).lastStatus(); known && statusEqual(previous, status) && !e.Feature.DynamicDisplay {
 		if _, rendered := e.bindingState(id).lastDisplay(); rendered {
 			return nil
@@ -577,6 +594,15 @@ func (e *Engine) ApplyJobResult(ctx context.Context, c *sdk.Client, result JobRe
 	if !ok || job.Generation != result.Generation {
 		return nil
 	}
+	defer func() {
+		if failure := errors.Join(result.Err, err); failure != nil && e.Feature.ObserveFailure != nil {
+			id := job.Owner
+			if id == "" {
+				id = result.ID
+			}
+			e.Feature.ObserveFailure(ctx, c, id, failure)
+		}
+	}()
 	if job.StopCancel != nil {
 		job.StopCancel()
 	}
@@ -621,7 +647,9 @@ func (e *Engine) FinishJob(ctx context.Context, c *sdk.Client, result JobResult,
 		if data, err := json.Marshal(diagnostic); err == nil && len(data) > 256*1024 {
 			diagnostic = map[string]any{"message": "Preview exceeds 256 KiB; narrow the selected fields", "truncated": true}
 		}
-		if err := c.Send(ctx, sdk.Message("sendToPropertyInspector", destination, diagnostic)); err != nil {
+		reply := sdk.Message("sendToPropertyInspector", destination, diagnostic)
+		reply.Action = e.Bindings[destination].Action
+		if err := c.Send(ctx, reply); err != nil {
 			return err
 		}
 	}
@@ -637,25 +665,21 @@ func (e *Engine) FinishJob(ctx context.Context, c *sdk.Client, result JobResult,
 // Handle shared inspector requests before feature-specific requests
 func (e *Engine) InspectBasic(ctx context.Context, c *sdk.Client, ev sdk.Event) (bool, error) {
 	var p struct {
-		Op       string         `json:"op"`
-		Settings map[string]any `json:"settings"`
-		Scope    string         `json:"scope"`
+		Op string `json:"op"`
 	}
 	_ = json.Unmarshal(ev.Payload, &p)
-	if p.Op != "discover" && p.Op != "test" {
+	var message string
+	switch p.Op {
+	case "discover":
+		message = "This action has no runtime discovery"
+	case "test":
+		message = "Activate a configured action to start its session"
+	default:
 		return false, nil
 	}
-	a := Action(ev.Action)
-	if a == "" {
-		a = "refresh"
-	}
-	if p.Op == "discover" {
-
-		return true, c.Send(ctx, sdk.Message("sendToPropertyInspector", ev.Context, map[string]any{"message": "This action has no runtime discovery"}))
-
-	}
-
-	return true, c.Send(ctx, sdk.Message("sendToPropertyInspector", ev.Context, map[string]any{"message": "Activate a configured action to start its session"}))
+	reply := sdk.Message("sendToPropertyInspector", ev.Context, map[string]any{"message": message})
+	reply.Action = ev.Action
+	return true, c.Send(ctx, reply)
 }
 
 // Compare statuses without treating equivalent feedback as changed

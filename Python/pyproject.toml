@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stream-dock-manager-plugin-sdk"
-version = "0.1.0"
-description = "Stream Dock Manager plugin SDK with conservative VSD Craft compatibility"
+version = "0.1.1"
+description = "Plugin SDK for Stream Dock Manager with OpenDeck (OpenAction) export and protocol features shared with VSD Craft and Elgato Stream Deck."
 requires-python = ">=3.11"
 license = "MIT"
 readme = "README.md"

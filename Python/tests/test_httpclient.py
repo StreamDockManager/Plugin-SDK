@@ -68,6 +68,10 @@ class HTTPTests(unittest.TestCase):
     def test_validator_cache_scope_reset_and_304(self):
         cache = ValidatorCache()
         settings = dict(url=self.url+'/cache', fields=dict(value='value'))
+        display = request(settings, automatic=True, cache=cache, preview=False)
+        self.assertEqual(display.fields, dict(value=42))
+        self.assertIsNone(display.preview)
+        self.assertEqual(display.paths, [])
         first = request(settings, automatic=True, cache=cache)
         second = request(settings, automatic=True, cache=cache)
         self.assertFalse(first.revalidated); self.assertTrue(second.revalidated)

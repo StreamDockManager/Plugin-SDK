@@ -15,6 +15,14 @@ export function secret(
     if (raw.includes('${')) throw Error(`${key} requires a whole-value environment reference`);
     return raw;
 }
+const sensitiveKey = /(password|secret|token|api[_-]key|webhook|authorization|cookie)/i;
+export function secretSettings(settings: Settings): Settings {
+    return Object.fromEntries(
+        Object.entries(settings).filter(
+            ([key, value]) => typeof value === 'string' && sensitiveKey.test(key),
+        ),
+    );
+}
 // Remove credential-bearing fields before exposing diagnostics
 export function redact(
     error: unknown,
@@ -26,12 +34,7 @@ export function redact(
         return (error as { safeError: () => Error }).safeError();
     let text = error instanceof Error ? error.message : String(error);
     for (const [key, raw] of Object.entries(settings)) {
-        if (
-            typeof raw !== 'string' ||
-            (!keys.includes(key) &&
-                !/(password|secret|token|api[_-]key|webhook|authorization|cookie)/i.test(key))
-        )
-            continue;
+        if (typeof raw !== 'string' || (!keys.includes(key) && !sensitiveKey.test(key))) continue;
         let resolved = raw;
         try {
             resolved = secret(settings, key, lookup);

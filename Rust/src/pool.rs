@@ -1,12 +1,16 @@
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicUsize, Ordering},
     mpsc::{sync_channel, SyncSender},
     Arc, Mutex,
 };
+type Job = (Arc<AtomicBool>, Work);
 type Work = Box<dyn FnOnce() + Send + 'static>;
 #[derive(Default)]
 pub struct ProbePool {
-    sender: Option<SyncSender<(Arc<AtomicBool>, Work)>>,
+    sender: Option<SyncSender<Job>>,
+    receiver: Option<Arc<Mutex<std::sync::mpsc::Receiver<Job>>>>,
+    workers: usize,
+    outstanding: Arc<AtomicUsize>,
     stop: Arc<AtomicBool>,
 }
 impl ProbePool {
@@ -20,44 +24,42 @@ impl ProbePool {
             return false;
         }
         if self.sender.is_none() {
-            let (tx, rx) = sync_channel::<(Arc<AtomicBool>, Work)>(32);
-            let receiver = Arc::new(Mutex::new(rx));
-            for _ in 0..4 {
-                let rx = receiver.clone();
-                let stop = self.stop.clone();
-                // Drain bounded jobs while rejecting cancelled work and containing callback panics
-                std::thread::spawn(move || {
-                    while !stop.load(Ordering::Acquire) {
-                        let job = rx
-                            .lock()
-                            .unwrap()
-                            .recv_timeout(std::time::Duration::from_millis(50));
-                        match job {
-                            Ok((cancel, work))
-                                if !stop.load(Ordering::Acquire)
-                                    && !cancel.load(Ordering::Acquire) =>
-                            {
-                                let _ =
-                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(work));
-                            }
-                            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
-                            _ => {}
-                        }
-                    }
-                });
-            }
+            let (tx, rx) = sync_channel(32);
+            self.receiver = Some(Arc::new(Mutex::new(rx)));
             self.sender = Some(tx);
         }
-        self.sender
+        let count = self.outstanding.fetch_add(1, Ordering::AcqRel) + 1;
+        if self
+            .sender
             .as_ref()
             .unwrap()
             .try_send((cancel, Box::new(work)))
-            .is_ok()
+            .is_err()
+        {
+            self.outstanding.fetch_sub(1, Ordering::AcqRel);
+            return false;
+        }
+        if self.workers < count.min(4) {
+            self.workers += 1;
+            let rx = self.receiver.as_ref().unwrap().clone();
+            let stop = self.stop.clone();
+            let outstanding = self.outstanding.clone();
+            std::thread::spawn(move || loop {
+                let job = rx.lock().unwrap().recv();
+                let Ok((cancel, work)) = job else { break };
+                if !stop.load(Ordering::Acquire) && !cancel.load(Ordering::Acquire) {
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(work));
+                }
+                outstanding.fetch_sub(1, Ordering::AcqRel);
+            });
+        }
+        true
     }
     // Signal worker shutdown and disconnect the submission queue
     pub fn close(&mut self) {
         self.stop.store(true, Ordering::Release);
         self.sender.take();
+        self.receiver.take();
     }
 }
 impl Drop for ProbePool {

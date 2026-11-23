@@ -46,6 +46,7 @@ class Connector(Plugin):
         self.resources, self.queue, self.messages = Resources(), [], {}
         self.busy, self.active_context, self.active_receipt = False, '', None
         self.active_deadline, self.active_resource = None, None
+        self._demand_changed = True
         self.work_lock = threading.Lock()
         self.inspector = self._inspect
         for action in options.actions:
@@ -59,6 +60,8 @@ class Connector(Plugin):
 
     # Watch connector data
     def watch(self):
+        if not self._demand_changed: return
+        self._demand_changed = False
         demand = []
         for context in self.bindings:
             settings = self.binding_settings(context); demand.append(settings)
@@ -161,10 +164,11 @@ class Connector(Plugin):
                     if self.driver.key(self.binding_settings(context)) != key: continue
                     self.messages.pop(context, None)
                     if error and self.resources.snapshot(context).observed_at is None: self.messages[context] = 'Unavailable\n' + error
-        self.background(client, 'connector-work', next(iter(self.bindings)), work, apply)
+        self.background(client, 'connector-work', '', work, apply)
 
     # Reset connector data
     def reset(self):
+        self._demand_changed = True
         if self._client: self.cancel_job(self._client, 'connector-work')
         if self.active_receipt: self.active_receipt(RuntimeError('cancelled'))
         for request in self.queue: request['receipt'](RuntimeError('cancelled'))
@@ -176,18 +180,38 @@ class Connector(Plugin):
     # Dispatch the incoming event through connector
     def handle(self, client, event):
         self._client = client
-        if event.event in ('didReceiveSettings', 'didReceiveGlobalSettings'): self.reset()
+        if event.event in ('willAppear', 'willDisappear', 'didReceiveSettings', 'didReceiveGlobalSettings') or (
+            event.context not in self.bindings and event.event in ('keyDown', 'keyUp', 'dialDown', 'dialUp', 'dialRotate', 'touchTap')
+        ):
+            self._demand_changed = True
+        shared = self.options.shared_keys
+        global_change = event.event == 'didReceiveGlobalSettings' and (not shared or any((k in self.global_settings) != (k in event.settings) or self.global_settings.get(k) != event.settings.get(k) for k in shared))
+        if global_change or (event.event == 'didReceiveSettings' and not shared):
+            self.reset()
+        elif event.event in ('didReceiveSettings', 'willDisappear'):
+            self._cancel_binding(event.context)
+            if event.event == 'willDisappear': self.resources.unwatch(event.context)
         super().handle(client, event)
         if event.event == 'willDisappear':
-            self.resources.unwatch(event.context); self.messages.pop(event.context, None)
             if not self.bindings: self.reset()
         if event.event == 'propertyInspectorDidDisappear' and event.context not in self.bindings:
-            retained = []
-            for request in self.queue:
-                if request['context'] == event.context: request['receipt'](RuntimeError('cancelled'))
-                else: retained.append(request)
-            self.queue = retained
-            if self.active_context == event.context: self.reset()
+            self._cancel_binding(event.context)
+        self.watch()
+
+    def _cancel_on_global_settings(self, key):
+        return key != "connector-work"
+
+    def _cancel_binding(self, context):
+        self.messages.pop(context, None)
+        retained = []
+        for request in self.queue:
+            if request['context'] == context: request['receipt'](RuntimeError('cancelled'))
+            else: retained.append(request)
+        self.queue = retained
+        if self.busy and self.active_context == context and self.active_resource is None:
+            self.cancel_job(self._client, 'connector-work')
+            if self.active_receipt: self.active_receipt(RuntimeError('cancelled'))
+            self.active_context, self.active_receipt, self.active_deadline, self.busy = '', None, None, False
 
     # Poll connector for ready work or updated state
     def poll(self, client):

@@ -1,38 +1,45 @@
 # Go plugin SDK
 
-Build native Stream Dock Manager plugins in Go. Users install your compiled ZIP and do not need Go on their machine.
+Build a native plugin. The finished ZIP contains its executable, so plugin users do not need Go.
 
-[SDK overview](../README.md) · [Starter plugins](../examples/README.md) · [License](../LICENSE)
+[Build Counter](#build-your-first-plugin) · [Setup](#get-started) · [APIs](#common-apis) ·
+[SDK checks](#work-on-the-sdk) · [Host compatibility](../README.md#host-compatibility-at-a-glance)
 
 ## Get started
 
-| Requirement     | Details                                      |
-| --------------- | -------------------------------------------- |
-| Go              | 1.27.4 or newer compatible with `go.mod`     |
-| Authoring tools | Python 3.11+ for packaging                   |
-| Module          | `github.com/StreamDockManager/Plugin-SDK/Go` |
-| Import name     | `sdk`                                        |
-
-Install [Go](https://go.dev/doc/install) and [Python](https://www.python.org/downloads/), then confirm `go version` and `python3 --version`. See the [shared setup notes](../README.md#install-build-tools) for Windows commands and native build tools.
-
-The [GitHub repository](https://github.com/StreamDockManager/Plugin-SDK) is named
-Plugin-SDK. Continue to use the Go module path above for imports and dependency pins.
+| Item         | Value                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------- |
+| Build tools  | [Go 1.27.4+](https://go.dev/doc/install), [Python 3.11+](https://www.python.org/downloads/) |
+| Module       | `github.com/StreamDockManager/Plugin-SDK/Go`                                                |
+| Import alias | `sdk`                                                                                       |
 
 ### Build your first plugin
 
-Start with the [Go Counter](../examples/sdk-example-go/README.md), which selects an exact SDK version. After [cloning the SDK](../README.md#get-the-source), run from its repository root:
+[Clone the SDK](../README.md#get-the-source). From its root:
 
 ```sh
 cd examples/sdk-example-go
 go mod download
+go mod verify
 python3 ../tools/package.py go
 ```
 
-The packager prints a ZIP path in `examples/artifacts/`. Install it through **Plugins → Import plugin** in Manager, enable it, assign its Counter action to a button, and save the binding. One press and release should change **Count 0** to **Count 1**. End users do not install this Go module.
+Use the printed ZIP in `examples/artifacts/`. In Manager, import and enable it, save a
+Counter binding, then press and release. The [Counter guide](../examples/sdk-example-go/README.md)
+shows what to customize. The checkout is 0.1.1; this starter pins the released Go module at `v0.1.0`.
 
 ### Start a project with your own identity
 
-For your own project, use the [SDK generator](../README.md#create-a-plugin). Keep a versioned SDK dependency in `go.mod`; private repositories require authenticated Git access and the SDK module prefix in `GOPRIVATE` (plus any explicitly configured `GONOPROXY`/`GONOSUMDB` patterns).
+[Generate a Go starter](../README.md#create-a-plugin), or add the released module from your
+own project:
+
+```sh
+go get github.com/StreamDockManager/Plugin-SDK/Go@v0.1.0
+```
+
+Keep the exact module version and `go.sum`. Private mirrors need authenticated Git access
+and the SDK module prefix in `GOPRIVATE` (and any explicitly configured proxy/sum database rules).
+Use a [local workspace](#work-on-the-sdk) for unreleased APIs such as Vault text formatting. The public `v0.1.0` module does not provide them.
 
 ## Common APIs
 
@@ -48,7 +55,9 @@ The host transport uses `coder/websocket`; image codecs use the Go standard libr
 
 ## Reusable helpers
 
-Import `Go/managedstate`, `Go/requests`, `Go/connectedws`, or `Go/thumbnail` from the SDK module. `authoring.StartObservationJob`, `authoring.Present`, and `authoring.CompactDisplay` are available without extra dependencies. Thumbnail decoding returns an `image.Image`:
+Import `managedstate`, `requests`, `connectedws`, or [`thumbnail`](thumbnail/README.md)
+under the Go module. `authoring.StartObservationJob`, `Present`, and `CompactDisplay` use
+no extra dependencies. Thumbnail decoding returns an `image.Image`:
 
 ```go
 image, err := thumbnail.Decode(ctx, encodedBytes, 72, 72)
@@ -56,7 +65,7 @@ image, err := thumbnail.Decode(ctx, encodedBytes, 72, 72)
 
 Use the SDK packaging helpers to retain dependency notices. Image codecs come from the Go standard library.
 
-See the [shared behavior and limits](../README.md#reusable-plugin-helpers) for persistence, discovery, cancellation, and rendering semantics.
+See the [shared behavior and limits](../REFERENCE.md#reusable-plugin-helpers) for persistence, discovery, cancellation, and rendering semantics.
 
 ## Caches, discovery, and operation history
 
@@ -126,14 +135,25 @@ go test ./...
 | Tests           | `go test ./...`       | Go unit and behavioral tests |
 | Thumbnail tests | `go test ./thumbnail` | Optional image helper        |
 
-To test local SDK changes in a plugin, run these commands from the plugin's Go module directory:
+To test the local SDK from a plugin module without changing its dependency pin, use a
+temporary workspace (POSIX shell):
 
 ```sh
-go work init . /absolute/path/to/StreamDockManager-Plugins-SDK/Go
-go test ./...
+plugin_root="$PWD"
+sdk_go=/absolute/path/to/Plugin-SDK/Go
+work=$(mktemp -d)
+(
+    cd "$work" || exit
+    GOWORK=off go work init "$plugin_root" "$sdk_go"
+    export GOWORK="$work/go.work"
+    go work edit "-replace=github.com/StreamDockManager/Plugin-SDK/Go@v0.1.0=$sdk_go"
+    cd "$plugin_root" || exit
+    go test ./...
+)
 ```
 
-If you already have a Go workspace, add this SDK with `go work use` instead. Keep local workspace files out of commits. Shared behavior must remain consistent with Rust, Python, and Node.js. See the [SDK overview](../README.md).
+Use the version in your own `go.mod` in the replacement if it differs. Keep the workspace
+and local paths out of commits. Shared SDK behavior must remain consistent across languages.
 
 ## Troubleshooting
 

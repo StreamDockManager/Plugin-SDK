@@ -86,13 +86,16 @@ class PollState:
 
     # Record completion of the pending poll state operation
     def complete(self, value, error, now, interval, jitter=0, retry_at=None):
+        self._complete(None if error is not None else deepcopy(value), error, now, interval, jitter, retry_at)
+
+    def _complete(self, value, error, now, interval, jitter=0, retry_at=None):
         if error is not None:
             self.failures = min(16, self.failures + 1)
             self.stale = self.observed_at is not None
             self.next = now + retry_delay(interval, self.failures, jitter)
         else:
             self.failures, self.stale = 0, False
-            self.last_value, self.observed_at = deepcopy(value), now
+            self.last_value, self.observed_at = value, now
             self.next = next_update(now, interval)
         if retry_at is not None: self.next = max(self.next, retry_at)
 
@@ -109,7 +112,8 @@ class Resources:
         if not key or not math.isfinite(interval) or interval < 0: raise ValueError('resource needs a key and nonnegative interval')
         if context in self.bindings and self.bindings[context][0] != key: self.unwatch(context)
         prior = self.bindings.get(context)
-        state = self.delivered.setdefault(context, deepcopy(self.states.get(key, PollState())))
+        if context not in self.delivered: self.delivered[context] = deepcopy(self.states.get(key, PollState()))
+        state = self.delivered[context]
         if (not prior or prior[1] != interval) and state.observed_at is not None: state.next = next_update(state.observed_at, interval)
         self.bindings[context] = (key, interval)
         self.states.setdefault(key, PollState())
@@ -140,11 +144,12 @@ class Resources:
         self.pending.pop(key)
         if retry_at is not None and retry_at > now: self.cooldowns[key] = retry_at
         else: self.cooldowns.pop(key, None)
+        shared = None if error is not None else deepcopy(value)
         forced = self.states[key].next == 0
         for context, (resource, interval) in self.bindings.items():
             state = self.delivered[context]
             if resource != key or (not forced and now < state.next): continue
-            state.complete(value, error, now, interval, jitter, retry_at)
+            state._complete(shared, error, now, interval, jitter, retry_at)
             if interval == 0: state.next = NEVER
         self.states[key].complete(value, error, now, 0, jitter, retry_at)
         self._schedule(key)

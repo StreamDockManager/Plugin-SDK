@@ -1,41 +1,44 @@
 # Rust plugin SDK
 
-Build native Stream Dock Manager plugins with Rust. The finished plugin ZIP contains a compiled executable; users do not need Cargo or Rust.
+Build a native plugin. The final ZIP contains the executable; users do not need Rust or Cargo.
 
-[SDK overview](../README.md) · [Starter plugins](../examples/README.md) · [License](../LICENSE)
+[Build Counter](#use-the-sdk-before-registry-publication) · [Setup](#get-started) ·
+[APIs](#main-apis) · [SDK checks](#build-and-test-the-sdk)
 
 ## Get started
 
-Install [Rust and Cargo](https://www.rust-lang.org/tools/install) and [Python](https://www.python.org/downloads/). Check `rustc --version`, `cargo --version`, and `python3 --version`. See [shared setup notes](../README.md#install-build-tools) for native toolchains and Windows commands.
+| Item             | Value                                                                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Build tools      | [Rust 1.89+ and Cargo](https://www.rust-lang.org/tools/install), native linker, [Python 3.11+](https://www.python.org/downloads/) |
+| Crate            | `stream-dock-manager-plugin-sdk`                                                                                                  |
+| Checkout version | `0.1.1`; keep an exact dependency and commit `Cargo.lock`                                                                         |
 
-| Dependency        | Value                                       |
-| ----------------- | ------------------------------------------- |
-| Rust and Cargo    | Rust 1.89+ and the platform's native linker |
-| Packaging tools   | Python 3.11+                                |
-| Crate             | `stream-dock-manager-plugin-sdk`            |
-| Initial version   | `0.1.0`                                     |
-| Dependency policy | Exact version with a committed `Cargo.lock` |
-
-For a working first plugin, follow the [Rust Counter](../examples/sdk-example-rust/README.md). Use the [project generator](../README.md#create-a-plugin) when you are ready to give it your own identity.
+[Clone the SDK](../README.md#get-the-source), then use the local Cargo override below
+with the [Rust Counter](../examples/sdk-example-rust/README.md). It does not require a
+crates.io publication.
 
 ### Use the SDK before registry publication
 
-Initial SDK publication is separate from local development. To use this checkout before publication, create a local Cargo configuration file outside the project:
+Save this as `sdk-local.toml` **outside the plugin** and point it at your SDK checkout:
 
 ```toml
 [patch.crates-io]
-stream-dock-manager-plugin-sdk = { path = "/absolute/path/to/StreamDockManager-Plugins-SDK/Rust" }
+stream-dock-manager-plugin-sdk = { path = "/absolute/path/to/Plugin-SDK/Rust" }
 ```
 
-Save this as, for example, `/absolute/path/to/sdk-local.toml`. Pass it to Cargo with `--config /absolute/path/to/sdk-local.toml`. The starter packager also accepts its path in `STREAM_DOCK_MANAGER_SDK_CARGO_CONFIG`:
+From `examples/sdk-example-rust/`:
 
 ```sh
-# From examples/sdk-example-rust/; replace the path with your real config file.
 export STREAM_DOCK_MANAGER_SDK_CARGO_CONFIG=/absolute/path/to/sdk-local.toml
 python3 ../tools/package.py rust
 ```
 
-In PowerShell, set `$env:STREAM_DOCK_MANAGER_SDK_CARGO_CONFIG = 'C:\path\to\sdk-local.toml'`. Do not commit development paths into published dependencies. The packager prints the ZIP path in `examples/artifacts/`; install it in Manager, enable it, and save a Counter binding.
+PowerShell: `$env:STREAM_DOCK_MANAGER_SDK_CARGO_CONFIG = 'C:\path\to\sdk-local.toml'`.
+For direct Cargo commands, use `--config /absolute/path/to/sdk-local.toml`. Keep local paths
+out of published dependencies.
+
+Import the printed ZIP in Manager, enable it, save a Counter binding, and press and release.
+To create your own plugin ID, use the [generator](../README.md#create-a-plugin).
 
 ## Main APIs
 
@@ -54,12 +57,12 @@ Callbacks run on the event-loop thread. Background work must observe cancellatio
 `managedstate`, `requests`, and the authoring helpers are included in the library. Enable optional codecs and service sockets explicitly:
 
 ```toml
-stream-dock-manager-plugin-sdk = { version = "=0.1.0", features = ["thumbnail", "service-websocket"] }
+stream-dock-manager-plugin-sdk = { version = "=0.1.1", features = ["thumbnail", "service-websocket"] }
 ```
 
 Use `thumbnail::decode(bytes, width, height, &cancel)` for an RGBA thumbnail, `connectedws::ServiceClient` for service sessions, and `Plugin::observe` for display-only follow-up work. Keep the same feature list when using a local path dependency.
 
-See the [shared behavior and limits](../README.md#reusable-plugin-helpers) for persistence, discovery, cancellation, and rendering semantics.
+See the [shared behavior and limits](../REFERENCE.md#reusable-plugin-helpers) for persistence, discovery, cancellation, and rendering semantics.
 
 ## Caches, discovery, and operation history
 

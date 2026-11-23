@@ -159,6 +159,45 @@ fn optional_malformed_metadata_preserves_base_protocol_without_negotiating() {
 }
 
 #[test]
+// Verify the explicit VSD Craft request uses the registration UUID without changing portable settings
+fn vsd_craft_settings_uses_registration_uuid_and_normal_async_events() {
+    let (client, output) = client(&[]);
+    client.request_vsd_craft_settings().unwrap();
+    assert_eq!(
+        output.recv_timeout(Duration::from_secs(1)).unwrap(),
+        json!({"event":"getSettings","context":"opaque-session-token"})
+    );
+    assert!(!client.observe_control(
+        &Event::parse(&json!({"event":"didReceiveSettings","context":"binding","payload":{"settings":{"value":1}}}).to_string()).unwrap()
+    ));
+    client.get_settings("binding").unwrap();
+    client.settings("binding", json!({"value":1})).unwrap();
+    client.get_global_settings().unwrap();
+    client.global_settings(json!({"value":2})).unwrap();
+    for expected in [
+        json!({"event":"getSettings","context":"binding"}),
+        json!({"event":"setSettings","context":"binding","payload":{"value":1}}),
+        json!({"event":"getGlobalSettings","context":"opaque-session-token"}),
+        json!({"event":"setGlobalSettings","context":"opaque-session-token","payload":{"value":2}}),
+    ] {
+        assert_eq!(
+            output.recv_timeout(Duration::from_secs(1)).unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
+// Reject missing registration UUIDs before sending a VSD Craft request
+fn vsd_craft_settings_requires_registration_uuid() {
+    for identity in ["", " 	"] {
+        let (client, output) = Client::new(HostInfo::parse("{}").unwrap(), identity.into());
+        assert!(client.request_vsd_craft_settings().is_err());
+        assert!(output.try_recv().is_err());
+    }
+}
+
+#[test]
 // Verify shared base requests and merge keep unknown fields and null
 fn shared_base_requests_and_merge_keep_unknown_fields_and_null() {
     let (client, output) = client(&[]);

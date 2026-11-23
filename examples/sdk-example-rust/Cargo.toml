@@ -1,6 +1,6 @@
 [package]
 name = "sdk-example-rust"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 
@@ -10,4 +10,4 @@ path = "main.rs"
 
 [dependencies]
 serde_json = "=1.0.154"
-stream-dock-manager-plugin-sdk = "=0.1.0"
+stream-dock-manager-plugin-sdk = "=0.1.1"

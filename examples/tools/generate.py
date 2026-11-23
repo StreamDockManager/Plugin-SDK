@@ -36,14 +36,13 @@ def generate(destination, plugin_id, language, name=None):
     files.update({'assets/' + path: regular(source) for path, source in tree_files(ROOT / 'assets').items()})
     files['LICENSE'] = regular(ROOT.parent / 'LICENSE')
     files['THIRD_PARTY_NOTICES.md'] = regular(ROOT / 'THIRD_PARTY_NOTICES.md')
-    for tool in ('unified.py', '_atomicfile.py', 'authoring_common.py', 'authoring_common.v1.json', 'authoring_common.LICENSE', 'project.py', 'package.py', 'openaction.py', 'validate.py', 'acceptance.py', 'cpp_transport.py', 'descriptor.py', 'audit.py', 'javascript.py', 'javascript.mjs', 'buildcache.py', 'profiles.py', 'profile-hardware.v1.json'):
+    for tool in ('unified.py', '_atomicfile.py', 'authoring_common.py', 'authoring_common.v1.json', 'authoring_common.LICENSE', 'project.py', 'package.py', 'openaction.py', 'validate.py', 'acceptance.py', 'cpp_transport.py', 'descriptor.py', 'audit.py', 'vault_setup.py', 'javascript.py', 'javascript.mjs', 'buildcache.py', 'profiles.py', 'profile-hardware.v1.json'):
         files['tools/' + tool] = regular(TOOLS / tool)
     manifest = json.loads(files['manifest.json'])
     previous_id = manifest['UUID']
     template_version = manifest['Version']
     manifest['UUID'] = plugin_id
     manifest['Name'] = name
-    manifest['Version'] = '0.1.0'
     manifest['Category'] = name
     manifest['Description'] = 'Standalone starter; customize the included action and property inspector'
     if language not in SCRIPT_KINDS:
@@ -51,7 +50,19 @@ def generate(destination, plugin_id, language, name=None):
         manifest['CodePathWin'] = manifest['CodePath'] + '.exe'
     for action in manifest['Actions']:
         action['UUID'] = plugin_id + action['UUID'][len(previous_id):]
-    descriptor = manifest.get('StreamDockManager', {}).get('Capabilities')
+    extension = manifest.get('StreamDockManager', {})
+    if 'Permissions' in extension:
+        permissions = extension['Permissions']['actions']
+        extension['Permissions']['actions'] = {plugin_id + action[len(previous_id):]: scopes for action, scopes in permissions.items()}
+        if 'permissions' in extension.get('Capabilities', {}):
+            compiled = extension['Capabilities']['permissions']['actions']
+            extension['Capabilities']['permissions']['actions'] = {plugin_id + action[len(previous_id):]: scopes for action, scopes in compiled.items()}
+    if 'SetupSlots' in extension or 'Permissions' in extension:
+        from vault_setup import validate_setup_slots
+        for slot in extension.get('SetupSlots', {}).get('slots', []):
+            slot['action'] = plugin_id + slot['action'][len(previous_id):]
+        validate_setup_slots(manifest)
+    descriptor = extension.get('Capabilities')
     if descriptor is not None:
         descriptor['id'] = plugin_id
         descriptor['actions'] = {plugin_id + key[len(previous_id):]: value for key, value in descriptor['actions'].items()}
@@ -64,9 +75,8 @@ def generate(destination, plugin_id, language, name=None):
         if filename in files:
             package = json.loads(files[filename])
             package['name'] = plugin_id
-            package['version'] = '0.1.0'
             files[filename] = encoded(package)
-            files['package-lock.json'] = encoded({'name': plugin_id, 'version': '0.1.0', 'lockfileVersion': 3, 'requires': True, 'packages': {'': {'name': plugin_id, 'version': '0.1.0', 'engines': package.get('engines', {}), 'dependencies': package.get('dependencies', {}), 'devDependencies': package.get('devDependencies', {})}}})
+            files['package-lock.json'] = encoded({'name': plugin_id, 'version': package['version'], 'lockfileVersion': 3, 'requires': True, 'packages': {'': {'name': plugin_id, 'version': package['version'], 'engines': package.get('engines', {}), 'dependencies': package.get('dependencies', {}), 'devDependencies': package.get('devDependencies', {})}}})
     if language == 'go':
         lines = files['go.mod'].decode().splitlines()
         module = next(line for line in lines if line.startswith('module '))
@@ -77,12 +87,12 @@ def generate(destination, plugin_id, language, name=None):
         previous = tomllib.loads(files['Cargo.toml'].decode())['package']
         old_name = previous['name']
         old_version = previous['version']
-        files['Cargo.toml'] = files['Cargo.toml'].replace(f'name = "{old_name}"'.encode(), f'name = "{local_name}"'.encode(), 1).replace(f'version = "{old_version}"'.encode(), b'version = "0.1.0"', 1)
-        files['Cargo.lock'] = files['Cargo.lock'].replace(f'name = "{old_name}"\nversion = "{old_version}"'.encode(), f'name = "{local_name}"\nversion = "0.1.0"'.encode(), 1)
+        files['Cargo.toml'] = files['Cargo.toml'].replace(f'name = "{old_name}"'.encode(), f'name = "{local_name}"'.encode(), 1)
+        files['Cargo.lock'] = files['Cargo.lock'].replace(f'name = "{old_name}"\nversion = "{old_version}"'.encode(), f'name = "{local_name}"\nversion = "{old_version}"'.encode(), 1)
         old_binary = tomllib.loads(inputs['Cargo.toml'].decode())['bin'][0]['name']
         files['Cargo.toml'] = files['Cargo.toml'].replace(f'[[bin]]\nname = "{old_binary}"'.encode(), f'[[bin]]\nname = "{default_binary_name(plugin_id)}"'.encode(), 1)
     lock_inputs = {path: hashlib.sha256(files[path]).hexdigest() for path in ['package-lock.json', 'requirements.txt', 'go.mod', 'go.sum', 'Cargo.toml', 'Cargo.lock', 'CMakeLists.txt'] if path in files}
-    files['dependencies.lock.json'] = encoded({'schema_version': 1, 'language': language, 'script_packages': [{'name': 'stream-dock-manager-plugin-sdk', 'version': '0.1.0'}] if language in ('nodejs',) else None, 'locked_inputs_sha256': lock_inputs, 'note': 'JavaScript SDK/tool dependencies require explicit provisioning before compilation. Native dependency versions/commits are pinned in the listed standard manifests and locks; provision them explicitly before building.'})
+    files['dependencies.lock.json'] = encoded({'schema_version': 1, 'language': language, 'script_packages': [{'name': 'stream-dock-manager-plugin-sdk', 'version': package['dependencies']['stream-dock-manager-plugin-sdk']}] if language in ('nodejs',) else None, 'locked_inputs_sha256': lock_inputs, 'note': 'JavaScript SDK/tool dependencies require explicit provisioning before compilation. Native dependency versions/commits are pinned in the listed standard manifests and locks; provision them explicitly before building.'})
     files['plugin-project.json'] = encoded({'schema_version': 1, 'language': language, 'identity': plugin_id, **({'javascript': {'assets': ['display/counter.json', 'icons/even.svg', 'icons/odd.svg']}} if language in ('nodejs',) else {})})
     files['template-provenance.json'] = encoded({'schema_version': 1, 'template': f'sdk-example-{language}', 'template_version': template_version, 'source_sha256': {path: hashlib.sha256(data).hexdigest() for path, data in sorted(inputs.items())}})
     files['.gitignore'] = b'artifacts/\nbuild/\ndist/\ntarget/\nnode_modules/\n.venv/\n__pycache__/\n'
@@ -107,12 +117,12 @@ def readme(name, plugin_id, language):
               'Node.js LTS packages retain `main.mjs` and run in the selected interpreter.\n'
               'They do not contain a standalone native executable.\n\n')
     prerequisites = {'nodejs': 'Node.js 22+ (explicitly provision the pinned SDK/esbuild packages)', 'python': 'Python 3.11+, a venv and the pinned requirements.txt build dependencies', 'go': 'Go 1.27.4 and the go.sum-locked module', 'rust': 'Rust 1.89+, Cargo and the Cargo.lock-locked dependencies'}[language]
-    private_go = ('The Go SDK dependency uses an exact version; download it to record its checksums.\n'
+    private_go = ('Run `go mod download` and `go mod verify` to provision the SDK pinned in go.mod and go.sum.\n'
                   'For private SDK access, configure GOPRIVATE, GONOPROXY and GONOSUMDB for\n'
                   'github.com/StreamDockManager/Plugin-SDK and authenticate through Git/SSH\n'
                   'or an HTTPS credential helper before building. Keep credentials out of this project.\n\n') if language == 'go' else ''
     javascript = ('Node.js plugins import run from stream-dock-manager-plugin-sdk and optional features from named subpaths.\n'
-                  'Before registry publication, install an absolute local SDK candidate with npm install --ignore-scripts --save-exact /absolute/path/stream-dock-manager-plugin-sdk-0.1.0.tgz.\n'
+                  'Before registry publication, install an absolute local SDK candidate with npm install --ignore-scripts --save-exact /absolute/path/stream-dock-manager-plugin-sdk-0.1.1.tgz.\n'
                   'Provision the exact declared esbuild/TypeScript versions, then package. Declare workers and dynamic assets in plugin-project.json.\n'
                   'ZIPs contain bundled ESM, only required assets, bundle-report.json and runtime license notices; no node_modules is needed at launch.\n\n') if language in ('nodejs',) else ''
     helpers = ('The four SDK libraries also provide managed state, correlated discovery, service WebSocket sessions, '

@@ -145,6 +145,7 @@ for (const runtime of ['nodejs'])
                         );
                     if (['minimal', 'counter'].includes(name))
                         for (const feature of [
+                            'text-references',
                             'httpclient',
                             'diagnostics',
                             'storage',

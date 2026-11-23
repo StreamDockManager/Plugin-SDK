@@ -1,4 +1,4 @@
-//! Owned-event-loop plugin SDK. See the repository protocol and compatibility guides
+//! Plugin SDK for Stream Dock Manager with OpenDeck (OpenAction) export and protocol features shared with VSD Craft and Elgato Stream Deck.
 mod atomicfile;
 mod completion;
 pub mod diagnostics;
@@ -58,3 +58,18 @@ pub use portable_image::{image_data_uri, MAX_PORTABLE_IMAGE_BYTES};
 pub mod openaction_events;
 
 pub mod openaction_device;
+
+pub mod permissions;
+pub use permissions::{
+    NotificationLevel, HTTP_BROKER_PROTOCOL, NOTIFICATIONS_PROTOCOL, PERMISSIONS_PROTOCOL,
+    VAULT_REFERENCES_PROTOCOL,
+};
+pub mod vault_values;
+pub use vault_values::{
+    VaultLocation, VaultTextValue, VaultValues, MAX_VAULT_TEXT_BYTES, VAULT_VALUES_PROTOCOL,
+};
+pub use vault_values::{VaultSecretValue, VaultSecrets, VAULT_SECRET_SHARING_PROTOCOL};
+
+pub use vault_values::{VaultWriteReceipt, VAULT_WRITES_PROTOCOL};
+
+pub use vault_values::TEXT_REFERENCES_PROTOCOL;

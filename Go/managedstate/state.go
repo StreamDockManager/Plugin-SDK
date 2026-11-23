@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	sdk "github.com/StreamDockManager/Plugin-SDK/Go"
+	"maps"
 	"sort"
 )
 
@@ -59,29 +60,34 @@ func New(mode, key string, portable PortableBackend, private PrivateBackend) (*S
 
 // Clone state into independently owned JSON records
 func clone(value any) (map[string]json.RawMessage, error) {
+	records, _, err := validatedRecords(value)
+	return records, err
+}
+
+func validatedRecords(value any) (map[string]json.RawMessage, int, error) {
 	data, err := json.Marshal(value)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if len(data) > 8<<20 {
-		return nil, &sdk.RPCError{Code: "quota", Message: "managed state exceeds 8 MiB"}
+		return nil, 0, &sdk.RPCError{Code: "quota", Message: "managed state exceeds 8 MiB"}
 	}
 	var result map[string]json.RawMessage
 	if err = json.Unmarshal(data, &result); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if result == nil {
-		return nil, fmt.Errorf("managed state must be a JSON object")
+		return nil, 0, fmt.Errorf("managed state must be a JSON object")
 	}
 	if len(result) > 4096 {
-		return nil, &sdk.RPCError{Code: "quota", Message: "managed state exceeds 4096 records"}
+		return nil, 0, &sdk.RPCError{Code: "quota", Message: "managed state exceeds 4096 records"}
 	}
 	for key := range result {
 		if key == "" {
-			return nil, fmt.Errorf("managed state record identity must not be empty")
+			return nil, 0, fmt.Errorf("managed state record identity must not be empty")
 		}
 	}
-	return result, nil
+	return result, len(data), nil
 }
 
 // Load state from the explicitly selected persistence backend
@@ -182,6 +188,10 @@ func stateKey(identity string) string {
 	return fmt.Sprintf("record:%x", sha256.Sum256([]byte(identity)))
 }
 
+func equalRecords(a, b map[string]json.RawMessage) bool {
+	return maps.EqualFunc(a, b, func(x, y json.RawMessage) bool { return bytes.Equal(x, y) })
+}
+
 // Save changed state using the selected persistence contract
 func (s *State) Save(ctx context.Context, value any) error {
 	if !s.ready {
@@ -190,7 +200,7 @@ func (s *State) Save(ctx context.Context, value any) error {
 	if s.blocked != nil {
 		return s.blocked
 	}
-	snapshot, err := clone(value)
+	snapshot, size, err := validatedRecords(value)
 	if err != nil {
 		return err
 	}
@@ -201,11 +211,13 @@ func (s *State) Save(ctx context.Context, value any) error {
 		return nil
 	}
 	if s.mode == "portable" {
-		encoded, _ := json.Marshal(snapshot)
-		previous, _ := json.Marshal(s.written)
-		if !bytes.Equal(encoded, previous) {
-			if len(encoded) > 256<<10 {
-				return &sdk.RPCError{Code: "quota", Message: "portable runtime state exceeds 256 KiB"}
+		if !equalRecords(snapshot, s.written) {
+			if size > 256<<10 {
+				// Custom marshalers can supply duplicate keys. The portable quota applies to the normalized object.
+				encoded, _ := json.Marshal(snapshot)
+				if len(encoded) > 256<<10 {
+					return &sdk.RPCError{Code: "quota", Message: "portable runtime state exceeds 256 KiB"}
+				}
 			}
 			result, e := s.portable.Update(ctx, map[string]any{s.key: snapshot})
 			if e != nil {
@@ -284,9 +296,7 @@ func (s *State) Save(ctx context.Context, value any) error {
 	s.Assurance = "committed"
 	s.written = pending.snapshot
 	s.pending = nil
-	current, _ := json.Marshal(snapshot)
-	committed, _ := json.Marshal(s.written)
-	s.Dirty = !bytes.Equal(current, committed)
+	s.Dirty = !equalRecords(snapshot, s.written)
 	// A newer snapshot is deliberately not folded into an ambiguous prior commit
 	return nil
 }

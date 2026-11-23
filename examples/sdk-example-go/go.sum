@@ -1,2 +1,4 @@
+github.com/StreamDockManager/Plugin-SDK/Go v0.1.0 h1:WjcXxs9qY/T7sUEpqhDOIL9dTUZX2L7iKasn0qeEOaA=
+github.com/StreamDockManager/Plugin-SDK/Go v0.1.0/go.mod h1:taK22m4T2Z6Jrg1SaM0nH3kgrGMrDcNOYWare8MOBkk=
 github.com/coder/websocket v1.8.15 h1:6B2JPeOGlpff2Uz6vOEH1Vzpi0iUz20A+lPVhPHtNUA=
 github.com/coder/websocket v1.8.15/go.mod h1:NX3SzP+inril6yawo5CQXx8+fk145lPDC6pumgx0mVg=

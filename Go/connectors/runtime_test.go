@@ -87,11 +87,11 @@ func (*fixtureDriver) Display(value any, _ string, _ map[string]any) string { re
 func (d *fixtureDriver) Close() { d.mu.Lock(); d.closed++; d.mu.Unlock() }
 
 // Create a connector engine with a recorder and controlled clock
-func runtimeFixture(t *testing.T, driver *fixtureDriver) (*engine.Engine, *testkit.Recorder, *testkit.Clock) {
+func runtimeFixture(t *testing.T, driver *fixtureDriver, shared ...string) (*engine.Engine, *testkit.Recorder, *testkit.Clock) {
 	t.Helper()
 	def := engine.Definition{Slug: "fixture", Actions: []string{"status", "volume"}}
 	visuals := map[string]engine.Visual{}
-	e := engine.New(def, filepath.Join(t.TempDir(), "state.json"), Factory(Options{Definition: def, Visuals: visuals, Interval: time.Minute, Dial: true, New: func(chan<- struct{}) Driver { return driver }}))
+	e := engine.New(def, filepath.Join(t.TempDir(), "state.json"), Factory(Options{Definition: def, Visuals: visuals, Interval: time.Minute, SharedKeys: shared, Dial: true, New: func(chan<- struct{}) Driver { return driver }}))
 	clock := testkit.NewClock(time.Now())
 	e.Now = clock.Now
 	e.Feature.Render = func(context.Context, *sdk.Client, string) error { return nil }
@@ -140,9 +140,10 @@ func TestSharedSampleStaleRetentionBackoffAndReadOnlyInspector(t *testing.T) {
 	if next := e.NextPoll(clock.Now()); !next.After(clock.Now()) {
 		t.Fatal("failed reads spin without backoff", next)
 	}
+	const inspectorAction = "org.fixture.status"
 	for _, op := range []string{"test", "discover"} {
 		payload := []byte(`{"op":"` + op + `","request_id":"picker-1","settings":{"player":"one"}}`)
-		if err := e.Handle(ctx, r.Client, sdk.Event{Event: "sendToPlugin", Context: "inspector", Payload: payload}); err != nil {
+		if err := e.Handle(ctx, r.Client, sdk.Event{Event: "sendToPlugin", Context: "inspector", Action: inspectorAction, Payload: payload}); err != nil {
 			t.Fatal(err)
 		}
 		drain(t, e, r)
@@ -153,7 +154,7 @@ func TestSharedSampleStaleRetentionBackoffAndReadOnlyInspector(t *testing.T) {
 				if err := json.Unmarshal(event.Payload, &payload); err != nil {
 					t.Fatal(err)
 				}
-				if payload["request_id"] == "picker-1" {
+				if event.Action == inspectorAction && payload["request_id"] == "picker-1" {
 					found = true
 				}
 			}
@@ -232,5 +233,73 @@ func TestQueuedDialCommandsAreSerializedAndNotReplayed(t *testing.T) {
 	defer d.mu.Unlock()
 	if fmt.Sprint(d.commands) != "[1 2 -1]" || d.peak != 1 {
 		t.Fatal(d.commands, d.peak)
+	}
+}
+
+func TestBindingEditsPreserveSharedSession(t *testing.T) {
+	driver := &fixtureDriver{}
+	e, rec, _ := runtimeFixture(t, driver, "endpoint", "token")
+	ctx := context.Background()
+	event := func(name, id string, fields map[string]any) {
+		t.Helper()
+		ev := sdk.Message(name, id, map[string]any{"settings": fields})
+		ev.Action = "app.streamdockmanager.plugins.fixture.status"
+		if err := e.Handle(ctx, rec.Client, ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	event("didReceiveGlobalSettings", "", map[string]any{"endpoint": "service", "token": "old"})
+	event("willAppear", "a", map[string]any{"player": "one"})
+	event("willAppear", "b", map[string]any{"player": "one"})
+	if err := e.Poll(ctx, rec.Client); err != nil {
+		t.Fatal(err)
+	}
+	drain(t, e, rec)
+	before := driver.closed
+	event("didReceiveSettings", "a", map[string]any{"player": "two", "display": "name"})
+	driver.gate = make(chan struct{})
+	driver.entered = make(chan string, 1)
+	if err := e.Poll(ctx, rec.Client); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-driver.entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("new binding read did not start")
+	}
+	event("didReceiveGlobalSettings", "", map[string]any{"endpoint": "service", "token": "old", "format": "short"})
+	if _, running := e.Jobs["connector-work"]; !running {
+		t.Fatal("display settings cancelled the shared worker")
+	}
+	close(driver.gate)
+	drain(t, e, rec)
+	if driver.closed != before || e.Feature.Status(ctx, "b", e.Bindings["b"]).Text != "one" {
+		t.Fatal("editing a control disrupted the other control's session or snapshot")
+	}
+	event("didReceiveGlobalSettings", "", map[string]any{"endpoint": "service", "token": "new"})
+	if driver.closed != before+1 {
+		t.Fatal("credential rotation did not reconnect")
+	}
+}
+
+type clientReaderFixture struct {
+	fixtureDriver
+	gotAction string
+}
+
+func (d *clientReaderFixture) ReadWithClient(_ context.Context, _ *sdk.Client, action string, _ map[string]any) (any, error) {
+	d.gotAction = action
+	return nil, &sdk.RPCError{Code: "vault_locked", Message: "fixture"}
+}
+
+func TestManagedReadUsesOwnedActionAndTreatsDenialAsAuthoritative(t *testing.T) {
+	client, _ := sdk.NewLocalClient(sdk.HostInfo{}, "fixture")
+	driver := &clientReaderFixture{}
+	_, err := readDriver(context.Background(), client, driver, "org.test.read", nil)
+	if driver.gotAction != "org.test.read" || driver.reads != 0 || !discardManagedSample(err) {
+		t.Fatal("managed read bypassed scoped client hook", err)
+	}
+	if discardManagedSample(fmt.Errorf("temporary service failure")) {
+		t.Fatal("transient provider failure must preserve its last sample")
 	}
 }

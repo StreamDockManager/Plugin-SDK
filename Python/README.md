@@ -1,66 +1,62 @@
 # Python plugin SDK
 
-Write a Stream Dock Manager plugin in Python, then package it with its own interpreter. Users do not need a separate Python installation.
+Write a Python plugin and package its interpreter with it. Users install a ZIP, not Python.
 
-[SDK overview](../README.md) · [Starter plugins](../examples/README.md) · [License](../LICENSE)
+[Build Counter](#make-your-first-plugin) · [Install the SDK](#install-for-local-development) ·
+[Package a plugin](#package-for-users) · [SDK checks](#test-the-sdk)
 
 ## Requirements
 
-| Item             | What you need                                                                    |
-| ---------------- | -------------------------------------------------------------------------------- |
-| Development      | Python 3.11+, pip, and a virtual environment                                     |
-| SDK package      | `stream-dock-manager-plugin-sdk`, version `0.1.0`                                |
-| Python import    | `stream_dock_manager_sdk`                                                        |
-| Plugin packaging | The starter's pinned PyInstaller requirements, on the target OS and architecture |
-| End-user runtime | Included in the packaged plugin; no separate Python installation                 |
-
-Install [Python](https://www.python.org/downloads/) and check `python3 --version`. On Windows, use `python` or `py -3` if `python3` is unavailable.
+| Item        | Value                                                        |
+| ----------- | ------------------------------------------------------------ |
+| Build tools | [Python 3.11+](https://www.python.org/downloads/), pip, venv |
+| SDK package | `stream-dock-manager-plugin-sdk` 0.1.1                       |
+| Import      | `stream_dock_manager_sdk`                                    |
+| Packaging   | Pinned PyInstaller requirements on the target OS and CPU     |
 
 ## Install for local development
 
-Use Python 3.11+ within the range declared in [pyproject.toml](pyproject.toml). From this `Python/` directory:
+[Clone the SDK](../README.md#get-the-source). From its root:
 
 ```sh
 python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e Python/
 ```
 
-| Shell                  | Activate the environment     |
-| ---------------------- | ---------------------------- |
-| macOS/Linux            | `. .venv/bin/activate`       |
-| Windows PowerShell     | `.venv\Scripts\Activate.ps1` |
-| Windows Command Prompt | `.venv\Scripts\activate.bat` |
-
-Then install the local SDK:
-
-```sh
-python -m pip install -e .
-```
-
-The package is `stream-dock-manager-plugin-sdk`; import it as `stream_dock_manager_sdk`. Registry publication of the initial release is separate from this local setup.
+On Windows, use `python` or `py -3` if needed and activate with
+`.venv\Scripts\Activate.ps1` in PowerShell or `.venv\Scripts\activate.bat` in Command Prompt.
+This installs the local SDK, not a PyPI release.
 
 ## Make your first plugin
 
-Follow the [Python Counter](../examples/sdk-example-python/README.md) to build a working ZIP, or use the [generator](../README.md#create-a-plugin) for your own identity.
-
-| API                            | Purpose                                   |
-| ------------------------------ | ----------------------------------------- |
-| `Handler.handle`               | Receive lifecycle and action events       |
-| `run(handler)`                 | Run the plugin's event loop               |
-| `defer_action()`               | Complete an action after background work  |
-| `hoststorage.PortableSettings` | Read and update portable settings         |
-| `hoststorage.HostStore`        | Use the optional negotiated private store |
-
-Background work is cooperative and applies results through the owned event loop. Host storage does not open a plugin SQLite file or silently select local JSON.
-
-## Package for users
-
-For the maintained Counter, follow its [environment and dependency setup](../examples/sdk-example-python/README.md#1-build-the-plugin), then run from `examples/sdk-example-python/` with that environment active:
+From the SDK root with that environment active:
 
 ```sh
+cd examples/sdk-example-python
+python -m pip install -r requirements.txt
 python ../tools/package.py python
 ```
 
-For a generated project, run `python tools/package.py --project .` from the project root instead. The packager prints the completed ZIP path.
+Import the printed ZIP in Manager, enable it, and save a Counter binding. Press and release
+to test it. See the [Counter guide](../examples/sdk-example-python/README.md) or
+[generate your own plugin ID](../README.md#create-a-plugin).
+
+| API                              | Use it to                                            |
+| -------------------------------- | ---------------------------------------------------- |
+| `Handler.handle`, `run(handler)` | Process lifecycle and action events                  |
+| `defer_action()`                 | Complete an action after cooperative background work |
+| `hoststorage.PortableSettings`   | Read and update portable settings                    |
+| `hoststorage.HostStore`          | Use explicitly negotiated private host storage       |
+
+Apply background results on the owned event loop. Host storage does not open a
+plugin SQLite file or silently select local JSON.
+
+## Package for users
+
+Run `python tools/package.py --project .` from a generated project's root.
+For the maintained Counter, use the [command above](#make-your-first-plugin).
+The packager prints the ZIP path.
 
 The maintained starter uses PyInstaller's folder bundle. Build on the target operating system and architecture, and keep the executable and its `_internal/` folder together. Install the ZIP through Manager's package review, then enable the plugin and save its action binding.
 
@@ -82,7 +78,7 @@ image = decode(encoded_bytes, 72, 72, cancel=cancel_event)
 
 `Plugin.observe` schedules display-only follow-up work. Include Pillow in your plugin's authoring dependencies before freezing the application; installed plugins need no separate Python or codec installation.
 
-See the [shared behavior and limits](../README.md#reusable-plugin-helpers) for persistence, discovery, cancellation, and rendering semantics.
+See the [shared behavior and limits](../REFERENCE.md#reusable-plugin-helpers) for persistence, discovery, cancellation, and rendering semantics.
 
 ## Caches, discovery, and operation history
 

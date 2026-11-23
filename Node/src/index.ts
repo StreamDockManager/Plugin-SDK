@@ -33,3 +33,18 @@ export type {
     OpenActionDeviceBrightness,
     OpenActionDeviceResponse,
 } from './openaction_device.js';
+
+export {
+    VaultValues,
+    VaultLocation,
+    VaultTextValue,
+    VAULT_VALUES_PROTOCOL,
+    MAX_VAULT_TEXT_BYTES,
+} from './vault-values.js';
+export { VaultSecrets, VaultSecretValue, VAULT_SECRET_SHARING_PROTOCOL } from './vault-values.js';
+
+export * from './permissions.js';
+
+export { VaultWrites, VAULT_WRITES_PROTOCOL, type VaultWriteReceipt } from './vault-values.js';
+
+export { formatText, TEXT_REFERENCES_PROTOCOL } from './text-references.js';

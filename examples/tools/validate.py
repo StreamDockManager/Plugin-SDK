@@ -7,6 +7,7 @@ import re
 import runpy
 import stat
 import zipfile
+from vault_setup import canonical_permissions, validate_setup_slots
 from descriptor import capabilities, inspect
 from profiles import package_profiles, validate_profiles
 from project import SCRIPT_KINDS, SOURCE_FILES, distribution_manifest, identity, native_binary_name, project_inputs, regular, relative, tree_files
@@ -71,11 +72,18 @@ def validate_project(project, archive=None, host="manager"):
                 if image not in expected:
                     raise ValueError(f'Unpackaged state image: {image}')
     capabilities(manifest)
+    validate_setup_slots(manifest)
     suggestions = package_profiles(source, manifest)
     if archive is not None:
         prefix = manifest['UUID'] + '.sdPlugin/'
         with zipfile.ZipFile(archive) as package:
-            if json.loads(package.read(prefix + "manifest.json")).get("CodePaths"):
+            archived = json.loads(package.read(prefix + "manifest.json"))
+            validate_setup_slots(archived)
+            if canonical_permissions(archived) != canonical_permissions(manifest):
+                raise ValueError('Missing or stale packaged Manager permissions')
+            if archived.get("StreamDockManager", {}).get("SetupSlots") != manifest.get("StreamDockManager", {}).get("SetupSlots"):
+                raise ValueError('Missing or stale packaged Manager SetupSlots')
+            if archived.get("CodePaths"):
                 raise ValueError("Unified archive: validate with tools/unified.py --validate <archive>; this command validates OS-specific source packages")
             infos = package.infolist()
             if len(infos) > 1024 or sum(info.file_size for info in infos) > 256 * 1024 * 1024 or any(info.file_size > 64 * 1024 * 1024 for info in infos):

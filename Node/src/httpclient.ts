@@ -339,6 +339,7 @@ export interface RequestOptions {
     lookup?: (key: string) => string | undefined;
     network?: NetworkPayload;
     statusOnly?: boolean;
+    preview?: boolean;
     noRedirect?: boolean;
     allowUserInfo?: boolean;
 }
@@ -431,6 +432,7 @@ export async function request(settings: Settings, options: RequestOptions = {}):
                 fields,
                 settings.field,
                 options.statusOnly,
+                options.preview !== false,
                 options.noRedirect,
                 options.allowUserInfo,
                 [...secrets].sort(),
@@ -582,11 +584,13 @@ export async function request(settings: Settings, options: RequestOptions = {}):
                 )
                     throw Error('Response contains trailing JSON data');
             }
-            result.preview = redact(text.slice(0, 4096), secrets);
+            if (options.preview !== false) result.preview = redact(text.slice(0, 4096), secrets);
         }
         if (parsed !== undefined) {
-            result.preview = redact(parsed, secrets);
-            result.paths = pathSuggestions(parsed);
+            if (options.preview !== false) {
+                result.preview = redact(parsed, secrets);
+                result.paths = pathSuggestions(parsed);
+            }
             for (const [name, path] of Object.entries(fields)) {
                 const extracted = extractPath(parsed, String(path));
                 if (extracted.found)

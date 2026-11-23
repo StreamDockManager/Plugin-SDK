@@ -25,7 +25,7 @@ def main():
         for directory in directories:
             target=ROOT/directory/name
             sync_output(target, source, check=args.check, diagnostic='Regenerate behavioral peers')
-    for name in ('protocol-v1.json', 'authoring-v1.json', 'services-v1.json', 'storage-v1.json', 'extensions-v1.json', 'helpers-v1.json', 'retry-after-v1.json'):
+    for name in ('protocol-v1.json', 'authoring-v1.json', 'services-v1.json', 'storage-v1.json', 'extensions-v1.json', 'helpers-v1.json', 'retry-after-v1.json', 'vault-slots-v1.json', 'permissions-v1.json'):
         source = (ROOT / 'contracts/fixtures' / name).read_bytes()
         for target in [ROOT / 'Go/testdata' / name, ROOT / 'Rust/testdata' / name]:
             sync_output(target, source, check=args.check, diagnostic='Regenerate contract fixtures with tools/sync_contracts.py')

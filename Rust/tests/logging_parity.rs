@@ -231,3 +231,41 @@ fn http_helpers_emit_network_diagnostics() {
     assert_eq!(value, json!({"value":3}));
     assert_eq!(history.lock().unwrap().len(), 1);
 }
+
+#[test]
+fn optional_network_demand() {
+    struct HandlerCount(u32);
+    impl Handler for HandlerCount {
+        fn handle(&mut self, _: &Client, _: &Event) -> Result<()> {
+            self.0 += 1;
+            Ok(())
+        }
+    }
+    let f = fixture();
+    let demand = &f["network_demand"];
+    for enabled in [false, true] {
+        let mut host = f["manager"].clone();
+        if !enabled {
+            host["streamDockManager"]["capabilities"]
+                .as_array_mut()
+                .unwrap()
+                .retain(|capability| capability != &demand["capability"]);
+        }
+        let mut recorder = testkit::Recorder::new(HostInfo::parse(&host.to_string()).unwrap());
+        let mut handler = HandlerCount(0);
+        recorder
+            .client
+            .dispatch(
+                &mut handler,
+                &Event::parse(&demand["request"].to_string()).unwrap(),
+            )
+            .unwrap();
+        let frames = recorder.drain();
+        assert_eq!(handler.0, if enabled { 0 } else { 1 });
+        assert_eq!(frames.len(), usize::from(enabled));
+        if enabled {
+            assert_eq!(frames[0]["event"], demand["response"]);
+            assert_eq!(frames[0]["payload"]["run_id"], "fixture-run");
+        }
+    }
+}

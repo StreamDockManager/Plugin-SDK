@@ -116,8 +116,19 @@ func (a *actionCompletion) finish(err error, returned bool) {
 	}
 }
 
+func (c *Client) networkDemand() bool {
+	return c.Supports("plugin-protocol-v1") && c.Supports("network-payload-v1") && c.Supports("network-demand-v1") && c.host.Manager.RunID != "" && len(c.host.Manager.RunID) <= 128
+}
+
 // Dispatch an event with cancellation and completion bookkeeping
 func handleEvent(ctx context.Context, c *Client, h Handler, e Event) {
+	if e.Event == "requestNetworkPayload" && c.networkDemand() {
+		if run := c.host.Manager.RunID; run != "" && len(run) <= 128 {
+			sent, received := NetworkPayload()
+			_ = c.Send(ctx, Message("networkPayload", "", map[string]any{"run_id": run, "sent_bytes": sent, "received_bytes": received}))
+		}
+		return
+	}
 	if e.Event == "didReceiveLogSettings" && c.Supports("plugin-logs-v1") {
 		var preferences struct {
 			DebugNetwork bool `json:"debug_network"`

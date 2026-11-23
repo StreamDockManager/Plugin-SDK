@@ -65,6 +65,10 @@ type SampledStatus struct {
 
 // Feature callbacks run on the SDK event loop. Background work receives immutable snapshots
 type Feature struct {
+	// ObserveFailure is an optional nonblocking application policy hook for admitted failures
+	ObserveFailure func(context.Context, *sdk.Client, string, error)
+	// FilterStatus applies optional application display policy before status deduplication
+	FilterStatus    func(context.Context, *sdk.Client, string, DisplayStatus) DisplayStatus
 	ShouldLogAction func(sdk.Event) bool
 	DemandChanged   func()
 	Present         func(string, DisplayStatus) Presentation
@@ -99,6 +103,8 @@ type ActionHooks struct {
 	Render      func(context.Context, *sdk.Client, string, Binding) (Display, error)
 }
 type Engine struct {
+	secretFields     map[string]map[string]any
+	redaction        jobRedaction
 	stateReadBlocked bool
 	Now              func() time.Time
 	Registered       map[string]ActionHooks

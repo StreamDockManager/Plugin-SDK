@@ -32,7 +32,21 @@ type ActionCapability struct {
 	Icon            ThemedAsset            `json:"icon"`
 	States          []ThemedAsset          `json:"states"`
 }
+
+// PermissionDeclaration describes requests. Only Manager can grant them.
+type PermissionDeclaration struct {
+	Version int                          `json:"version"`
+	Actions map[string]ActionPermissions `json:"actions"`
+}
+
+type ActionPermissions struct {
+	Purpose  string              `json:"purpose"`
+	Required []map[string]string `json:"required,omitempty"`
+	Optional []map[string]string `json:"optional,omitempty"`
+}
+
 type Capabilities struct {
+	Permissions          *PermissionDeclaration      `json:"permissions,omitempty"`
 	MinimumManager       string                      `json:"minimum_manager,omitempty"`
 	RequiredCapabilities []string                    `json:"required_capabilities,omitempty"`
 	Version              int                         `json:"version"`

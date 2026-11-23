@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Standalone SDK checks and release candidate preparation; never publishes."""
 import argparse
+import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,15 +33,59 @@ def test_python(env):
     run([sys.executable, '-m', 'unittest', 'discover', '-s', ROOT / 'tests', '-p', 'test_release.py', '-v'], env=env)
 
 
+# Package source-only distributions and the already tested Node output
+def package(env):
+    from release import VERSION, validate_versions
+    validate_versions(ROOT)
+    # Refuse to silently pack a checkout that has never emitted a Node SDK build
+    exports = json.loads((ROOT / 'Node/package.json').read_text(encoding='utf-8'))['exports']
+    for paths in exports.values():
+        for relative in paths.values():
+            path = ROOT / 'Node' / relative
+            if not path.is_file() or path.is_symlink():
+                raise ValueError(f'Missing built Node SDK export: {relative}')
+    output = ROOT / 'artifacts'
+    output.mkdir(exist_ok=True)
+    run(['npm','pack','--ignore-scripts','--pack-destination',output], ROOT / 'Node', env)
+    run(['cargo', 'package', '--locked', '--allow-dirty', '--no-verify', '--manifest-path', ROOT / 'Rust/Cargo.toml', '--features', 'http,thumbnail,service-websocket'], env=env)
+    shutil.copyfile(Path(env['CARGO_TARGET_DIR']) / f'package/stream-dock-manager-plugin-sdk-{VERSION}.crate', output / f'stream-dock-manager-plugin-sdk-{VERSION}.crate')
+    python_build = ROOT / 'Python/build'
+    if python_build.is_symlink():
+        raise ValueError('Refusing symlink build cleanup')
+    if python_build.exists():
+        shutil.rmtree(python_build)
+    # Normalize only this build's first-party wheel, never cached/external wheels
+    from zip_policy import normalize_owned_wheel
+    with tempfile.TemporaryDirectory(prefix='sdk-wheel-', dir=output) as wheel_directory:
+        run([sys.executable, '-m', 'pip', 'wheel', '--no-build-isolation', '--no-deps', '--wheel-dir', wheel_directory, ROOT / 'Python'], env=env)
+        wheels = list(Path(wheel_directory).glob(f'stream_dock_manager_plugin_sdk-{VERSION}-*.whl'))
+        if len(wheels) != 1:
+            raise ValueError('Expected exactly one newly built SDK wheel')
+        normalize_owned_wheel(wheels[0])
+        os.replace(wheels[0], output / wheels[0].name)
+    with zipfile.ZipFile(output / f'stream-dock-manager-plugin-sdk-go-{VERSION}.zip', 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+        for path in sorted((ROOT / 'Go').rglob('*')):
+            if path.is_file() and not any(part.startswith('.') for part in path.relative_to(ROOT / 'Go').parts):
+                archive.write(path, f'github.com/StreamDockManager/Plugin-SDK/Go@v{VERSION}/' + path.relative_to(ROOT / 'Go').as_posix())
+
+
 # Run the build command and enforce its input options
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['deps', 'build', 'check', 'test', 'test-python', 'package', 'fmt', 'fmt-check', 'clean'])
+    parser.add_argument('action', choices=['deps', 'build', 'check', 'test', 'test-python', 'package', 'package-built', 'fmt', 'fmt-check', 'clean'])
+    parser.add_argument('--go-race', action='store_true',
+                        help='Run the Go source suite once with the race detector (test only)')
     args = parser.parse_args()
+    if args.go_race and args.action != 'test':
+        parser.error('--go-race requires the test action')
     env = os.environ.copy()
     env.setdefault('GOCACHE', str(ROOT / '.cache/go-build'))
     env.setdefault('CARGO_TARGET_DIR', str(ROOT / '.cache/rust-target'))
     action = args.action
+    if action == 'package-built':
+        # CI runs this only after source tests build and check the same checkout
+        package(env)
+        return
     if action == 'test-python':
         from javascript_runtimes import environment
         env = environment(env)
@@ -63,12 +109,8 @@ def main():
         run(['rustfmt', '--edition', '2021', *(['--check'] if action == 'fmt-check' else []), ROOT / 'examples/sdk-example-rust/main.rs'], env=env)
         return
     if action == 'clean':
-        import shutil
-        for path in [ROOT / 'artifacts', ROOT / '.cache']:
-            if path.is_symlink():
-                raise ValueError('Refusing symlink cleanup')
-            if path.exists():
-                shutil.rmtree(path)
+        from clean import clean
+        clean(dry_run=os.environ.get('CLEAN_DRY_RUN') == '1')
         return
     if action == 'deps':
         run(['npm', 'ci', '--ignore-scripts'], ROOT / 'Node', env)
@@ -81,10 +123,14 @@ def main():
     if action == 'test':
         from javascript_runtimes import environment
         env=environment(env)
+        run([sys.executable, ROOT / 'tests/test_workflow_profiles.py'], env=env)
         run([sys.executable, ROOT / 'tests/run_javascript.py'], env=env)
         run([env['STREAM_DOCK_MANAGER_NODE'], ROOT / 'tests/inspector-requests.mjs'], env=env)
-    run(['go', 'test' if action == 'test' else 'build', './...'], ROOT / 'Go', env)
-    run(['cargo', 'test' if action == 'test' else 'check', '--locked', '--manifest-path', ROOT / 'Rust/Cargo.toml', '--features', 'http,testkit-tls,thumbnail,service-websocket' if action == 'test' else 'http,thumbnail,service-websocket'], env=env)
+    run(['go', 'test' if action == 'test' else 'build', *(['-race'] if args.go_race else []), './...'],
+        ROOT / 'Go', env)
+    rust_options = ['--all-features'] if action == 'test' else ['--features', 'http,thumbnail,service-websocket']
+    run(['cargo', 'test' if action == 'test' else 'check', '--locked', '--manifest-path', ROOT / 'Rust/Cargo.toml',
+         *rust_options], env=env)
     if action == 'test':
         # Downstream Cargo feature unification may change serde_json's map order
         # Keep exact state bytes compatible with the original envelope in both modes
@@ -97,32 +143,7 @@ def main():
         run([sys.executable, '-m', 'compileall', '-q', ROOT / 'Python/stream_dock_manager_sdk'], env=env)
     run([sys.executable, ROOT / 'examples/tools/validate.py'], env=env)
     if action == 'package':
-        output = ROOT / 'artifacts'
-        output.mkdir(exist_ok=True)
-        run(['npm','pack','--ignore-scripts','--pack-destination',output], ROOT / 'Node', env)
-        run(['cargo', 'package', '--locked', '--allow-dirty', '--no-verify', '--manifest-path', ROOT / 'Rust/Cargo.toml', '--features', 'http,testkit-tls,thumbnail,service-websocket' if action == 'test' else 'http,thumbnail,service-websocket'], env=env)
-        import shutil
-        shutil.copyfile(Path(env['CARGO_TARGET_DIR']) / 'package/stream-dock-manager-plugin-sdk-0.1.0.crate', output / 'stream-dock-manager-plugin-sdk-0.1.0.crate')
-        python_build = ROOT / 'Python/build'
-        if python_build.is_symlink():
-            raise ValueError('Refusing symlink build cleanup')
-        if python_build.exists():
-            shutil.rmtree(python_build)
-        # Normalize only this build's first-party wheel, never cached/external wheels
-        import tempfile
-        from zip_policy import normalize_owned_wheel
-        with tempfile.TemporaryDirectory(prefix='sdk-wheel-', dir=output) as wheel_directory:
-            run([sys.executable, '-m', 'pip', 'wheel', '--no-build-isolation', '--no-deps', '--wheel-dir', wheel_directory, ROOT / 'Python'], env=env)
-            wheels = list(Path(wheel_directory).glob('stream_dock_manager_plugin_sdk-0.1.0-*.whl'))
-            if len(wheels) != 1:
-                raise ValueError('Expected exactly one newly built SDK wheel')
-            normalize_owned_wheel(wheels[0])
-            os.replace(wheels[0], output / wheels[0].name)
-        with zipfile.ZipFile(output / 'stream-dock-manager-plugin-sdk-go-0.1.0.zip', 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
-            for path in sorted((ROOT / 'Go').rglob('*')):
-                if path.is_file() and not any(part.startswith('.') for part in path.relative_to(ROOT / 'Go').parts):
-                    archive.write(path, 'github.com/StreamDockManager/Plugin-SDK/Go@v0.1.0/' + path.relative_to(ROOT / 'Go').as_posix())
-
+        package(env)
 
 if __name__ == '__main__':
     main()

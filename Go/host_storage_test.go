@@ -29,6 +29,39 @@ func storageFixture(t *testing.T) map[string]any {
 	return fixture
 }
 
+// Keep explicit VSD Craft requests separate from portable binding reads
+func TestVSDCraftSettingsRequest(t *testing.T) {
+	client, out := NewLocalClient(HostInfo{}, "registration-id")
+	ctx := context.Background()
+	for _, tc := range []struct {
+		send func(context.Context) error
+		want string
+	}{
+		{client.RequestVSDCraftSettings, `{"event":"getSettings","context":"registration-id"}`},
+		{func(ctx context.Context) error { return client.GetSettings(ctx, "binding-id") },
+			`{"event":"getSettings","context":"binding-id"}`},
+	} {
+		if err := tc.send(ctx); err != nil {
+			t.Fatal(err)
+		}
+		raw, err := json.Marshal(<-out)
+		if err != nil || string(raw) != tc.want {
+			t.Fatalf("settings request: %s, want %s (%v)", raw, tc.want, err)
+		}
+	}
+	for _, id := range []string{"", " \t"} {
+		unregistered, queue := NewLocalClient(HostInfo{}, id)
+		if err := unregistered.RequestVSDCraftSettings(ctx); err == nil {
+			t.Fatal("VSD Craft settings accepted a blank registration UUID")
+		}
+		select {
+		case <-queue:
+			t.Fatal("sent a settings request without a registration UUID")
+		default:
+		}
+	}
+}
+
 // Verify shared host storage and portable settings
 func TestSharedHostStorageAndPortableSettings(t *testing.T) {
 	fixture := storageFixture(t)

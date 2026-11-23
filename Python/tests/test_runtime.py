@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from stream_dock_manager_sdk import Handler
+from stream_dock_manager_sdk import Handler, HostInfo
 from stream_dock_manager_sdk.runtime import connect, _IncomingBudget, MAX_INPUT_BYTES, MAX_INPUT_ITEMS, MAX_MESSAGE
 from stream_dock_manager_sdk import wire
 from wsproto import WSConnection, ConnectionType
@@ -45,6 +45,19 @@ class Socket:
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_portable_registration_with_descriptor(self):
+        fixture = json.loads((Path(__file__).resolve().parents[2] / 'contracts/fixtures/protocol-v1.json').read_text())
+        descriptor = fixture['registration_descriptor']
+        for host in ('legacy', 'opendeck', 'manager'):
+            with self.subTest(host=host):
+                socket = Socket([{'event': 'shutdown'}])
+                with patch.object(wire, 'connect_loopback', return_value=socket):
+                    connect(Handler(), 'ws://127.0.0.1:1234', 'fixture', HostInfo.parse(fixture[host]), descriptor=descriptor)
+                expected = {'event': 'registerPlugin', 'uuid': 'fixture'}
+                if host == 'manager':
+                    expected['payload'] = {'capabilities': descriptor, 'network_debug': True, 'network_demand': True}
+                self.assertEqual(socket.messages, [expected])
+
     # Verify incoming flood preserves fifo release and shutdown
     def test_incoming_flood_preserves_fifo_release_and_shutdown(self):
         errors = []

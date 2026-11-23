@@ -16,13 +16,18 @@ def secret(settings, key, lookup=os.environ.get):
     return value
 
 
+_sensitive = re.compile(r'password|secret|token|api[_-]key|webhook|authorization|cookie', re.I)
+
+def secret_settings(settings):
+    return {key: value for key, value in settings.items() if isinstance(value, str) and _sensitive.search(key)}
+
 # Format an error without exposing configured credentials
 def safe_error(error, settings, sensitive_keys=(), lookup=os.environ.get):
     if error is None: return None
     if hasattr(error, 'safe_error'): return error.safe_error()
     text = str(error)
     for key, raw in settings.items():
-        if not isinstance(raw, str) or not (key in sensitive_keys or re.search(r'password|secret|token|api[_-]key|webhook|authorization|cookie', key, re.I)): continue
+        if not isinstance(raw, str) or not (key in sensitive_keys or _sensitive.search(key)): continue
         try: resolved = secret(settings, key, lookup)
         except ValueError: resolved = ''
         for value in (raw, resolved):

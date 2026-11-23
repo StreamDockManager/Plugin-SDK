@@ -84,7 +84,9 @@ class Renderer:
     # Render renderer data
     def render(self, client, context, desired):
         if not isinstance(desired, Display): raise TypeError('render callback must return Display')
-        for message in display_messages(context, self.last.get(context), desired, True):
+        previous = self.last.get(context)
+        if previous == desired: return
+        for message in display_messages(context, previous, desired, True):
             client.send(message['event'], context, message['payload'])
         self.last[context] = deepcopy(desired)
 
@@ -139,6 +141,7 @@ class Plugin(Handler):
         self.renderer, self.store, self.clock = Renderer(), store, clock
         self.jobs, self.generation, self._scope = {}, 0, ('', '', True, False)
         self._client = None
+        self._secret_fields = None
         self.inspector = None
 
     # Register plugin data
@@ -174,13 +177,21 @@ class Plugin(Handler):
     def handle(self, client, event):
         self._client = client
         if event.event in ('willAppear', 'didReceiveSettings', 'didReceiveGlobalSettings'):
-            from .credentials import safe_error
-            snapshots = deepcopy([self.global_settings, event.settings, *[binding.settings for binding in self.bindings.values()]])
+            from .credentials import safe_error, secret_settings
+            if self._secret_fields is None:
+                self._secret_fields = {key: secret_settings(b.settings) for key,b in self.bindings.items()}
+            incoming = secret_settings(event.settings)
+            snapshots = [secret_settings(self.global_settings), incoming, *self._secret_fields.values()]
+            if event.event != 'didReceiveGlobalSettings':
+                if incoming: self._secret_fields[event.context] = incoming
+                else: self._secret_fields.pop(event.context, None)
             # Redact plugin data
             def redact(text):
                 for settings in snapshots: text = str(safe_error(RuntimeError(text), settings))
                 return text
             client.log_redactor = redact
+        if event.event == "willDisappear" and self._secret_fields is not None:
+            self._secret_fields.pop(event.context, None)
         name, context, action = event.event, event.context, event.action
         old_scope = self._scope
         lifecycle = name in ('willAppear', 'didReceiveSettings')
@@ -190,7 +201,8 @@ class Plugin(Handler):
         try:
             if name == 'didReceiveGlobalSettings':
                 self.global_settings = deepcopy(event.settings)
-                for key in list(self.jobs): self.cancel_job(client, key)
+                for key in list(self.jobs):
+                    if self._cancel_on_global_settings(key): self.cancel_job(client, key)
                 return
             if name == 'didReceivePluginTheme':
                 theme = event.payload.get('resolved')
@@ -272,7 +284,11 @@ class Plugin(Handler):
         except RuntimeError:
             return None
 
-    # Cancel job
+    # A connector manages its shared worker when settings change.
+    def _cancel_on_global_settings(self, key):
+        return True
+
+    # Cancel the outstanding job by key.
     def cancel_job(self, client, key):
         job = self.jobs.pop(key, None)
         if job: client.cancel_background(job['cancel'])

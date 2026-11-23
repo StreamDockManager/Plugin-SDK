@@ -11,6 +11,7 @@ import time
 from .network import NetworkPayload
 from .protocol import Event, FEATURES, HostInfo, UnsupportedFeatureError, parse_capabilities
 from .hoststorage import Control, RPC_REQUEST
+from .vault import format_text
 
 _current = ContextVar('stream_dock_manager_action', default=None)
 MAX_MESSAGE = 1 << 20
@@ -72,14 +73,14 @@ def _output_queue(limit):
             self.bytes = 0
         # Store the supplied byte queue entry
         def _put(self, value):
-            size = len(value.encode())
+            size = len(value)
             if self.bytes + size > limit: raise queue.Full
             super()._put(value)
             self.bytes += size
         # Return the requested byte queue value
         def _get(self):
             value = super()._get()
-            self.bytes -= len(value.encode())
+            self.bytes -= len(value)
             return value
     return ByteQueue()
 
@@ -159,6 +160,7 @@ class ProbePool:
         self._jobs = queue.Queue(32)
         self._stop = threading.Event()
         self._workers = []
+        self._outstanding = 0
         self._lock = threading.Lock()
 
     # Admit a probe job while enforcing worker and queue capacity
@@ -166,38 +168,48 @@ class ProbePool:
         with self._lock:
             if self._stop.is_set() or cancel is not None and cancel.is_set():
                 return False
-            if not self._workers:
-                for _ in range(4):
-                    worker = threading.Thread(target=self._worker, daemon=True)
-                    self._workers.append(worker)
-                    worker.start()
             try:
                 self._jobs.put_nowait((work, cancel))
-                return True
             except queue.Full:
                 return False
+            self._outstanding += 1
+            if len(self._workers) < min(4, self._outstanding):
+                worker = threading.Thread(target=self._worker, daemon=True)
+                self._workers.append(worker)
+                worker.start()
+            return True
 
     # Process queued probe pool work until shutdown
     def _worker(self):
-        while not self._stop.is_set():
-            try:
-                work, cancel = self._jobs.get(timeout=.05)
-            except queue.Empty:
-                continue
-            if not self._stop.is_set() and not (cancel is not None and cancel.is_set()):
-                work()
-
-    # Stop probe pool activity and release owned resources
-    def close(self):
-        self._stop.set()
         while True:
+            job = self._jobs.get()
+            if job is None:
+                return
+            work, cancel = job
             try:
-                self._jobs.get_nowait()
-            except queue.Empty:
-                break
+                if not self._stop.is_set() and not (cancel is not None and cancel.is_set()):
+                    work()
+            finally:
+                del job, work, cancel
+                with self._lock:
+                    self._outstanding -= 1
+
+    def close(self):
+        with self._lock:
+            if self._stop.is_set():
+                return
+            self._stop.set()
+            while True:
+                try:
+                    self._jobs.get_nowait()
+                except queue.Empty:
+                    break
+            for _ in self._workers:
+                self._jobs.put_nowait(None)
         deadline = time.monotonic() + 2
         for worker in self._workers:
-            worker.join(max(0, deadline - time.monotonic()))
+            if worker is not threading.current_thread():
+                worker.join(max(0, deadline - time.monotonic()))
 
 
 # Check whether should log action
@@ -258,6 +270,8 @@ class Client:
         self._inputs = {}
         self._actions = {}
         self._jobs = {}
+        self._job_redactors = {}
+        self._redactor_lock = threading.Lock()
         self._pool = ProbePool()
         self.control = Control(self)
         self._plugin_theme = None
@@ -267,6 +281,10 @@ class Client:
     # Check whether the host advertises the requested capability
     def supports(self, feature):
         return self.host.supports(feature)
+
+    def _network_demand(self):
+        run = self.host.manager.get("run_id")
+        return self.supports("plugin-protocol-v1") and self.supports("network-demand-v1") and self.supports("network-payload-v1") and isinstance(run, str) and 0 < len(run.encode()) <= 128
 
     # Check whether theme requests can use the negotiated host capability
     def supports_theme_rpc(self):
@@ -292,6 +310,10 @@ class Client:
                 return False
             self._plugin_theme = deepcopy(value)
             return True
+
+    def format_text(self, action: str, text: str, cancel: threading.Event | None = None) -> str:
+        """Resolve one transient string without updating saved settings."""
+        return format_text(self, action, text, cancel)
 
     # Return rpc for client
     def rpc(self, protocol, method, payload, cancel=None):
@@ -320,8 +342,9 @@ class Client:
             message['action'] = action
         if payload is not None:
             message['payload'] = payload
-        encoded = json.dumps(message, separators=(',', ':'), allow_nan=False)
-        if len(encoded.encode()) > MAX_MESSAGE:
+        # ASCII JSON makes character length the exact UTF-8 wire size.
+        encoded = json.dumps(message, ensure_ascii=True, separators=(',', ':'), allow_nan=False)
+        if len(encoded) > MAX_MESSAGE:
             raise ValueError('SDK message exceeds 1048576-byte UTF-8 JSON limit')
         cancel = None
         if event == 'desktopInput' and _current.get() is not None:
@@ -356,6 +379,12 @@ class Client:
     def settings(self, context, value): self.send('setSettings', context, value)
     # Request action settings from the host
     def get_settings(self, context): self.send('getSettings', context)
+    def request_vsd_craft_settings(self):
+        """Send VSD Craft's backend settings request; the reply is a didReceiveSettings event."""
+        if not self.identity.strip():
+            raise ValueError('VSD Craft settings require a registration UUID')
+        self.send('getSettings', self.identity)
+
     # Write global plugin settings through the base host protocol
     def global_settings(self, value): self.send('setGlobalSettings', self.identity, value)
     # Request global plugin settings from the host
@@ -370,12 +399,21 @@ class Client:
     # Send a success indicator to the action context
     def ok(self, context): self.send('showOk', context, {})
     log_redactor = staticmethod(lambda text: text)
+
+    def _safe_log(self, text):
+        current = self.log_redactor
+        with self._redactor_lock:
+            previous = tuple(self._job_redactors.values())
+        for redact in previous:
+            if redact is not current: text = redact(text)
+        return current(text)
+
     # Forward a message to the plugin stdout log stream
     def log(self, text): self.log_stream('stdout', text)
     # Frame and queue redacted output for the selected log stream
     def log_stream(self, stream, text):
         if stream not in ('stdout', 'stderr'): raise ValueError('invalid log stream')
-        text = self.log_redactor(str(text))
+        text = self._safe_log(str(text))
         raw = ''.join('�' if 0xd800 <= ord(char) <= 0xdfff else char for char in text).encode('utf-8')
         while raw:
             end = min(len(raw), 16 << 10)
@@ -400,15 +438,18 @@ class Client:
                 self.send('logMessage', payload=dict(payload, stream='stderr' if failed else 'stdout', source='network'))
             except Exception:
                 pass
-        self.network.diagnostics.configure(enabled and self.supports('plugin-logs-v1'), emit, lambda text: self.log_redactor(text))
+        self.network.diagnostics.configure(enabled and self.supports('plugin-logs-v1'), emit, self._safe_log)
 
     # Drain a bounded batch, prioritizing action/display output over diagnostics
     def drain(self):
         """Drain a bounded batch, prioritizing action/display output over diagnostics."""
+        return [json.loads(frame) for frame in self._drain_encoded()]
+
+    def _drain_encoded(self):
         values = []
         for _ in range(128):
             try:
-                values.append(json.loads(self._out.get_nowait()))
+                values.append(self._out.get_nowait())
             except queue.Empty:
                 break
         with self._log_lock:
@@ -417,10 +458,10 @@ class Client:
             payload = dict(message=f'SDK log queue overloaded; {lost} messages were not captured', incomplete=True)
             if self.supports('plugin-logs-v1'):
                 payload['stream'] = 'stderr'
-            values.append(dict(event='logMessage', payload=payload))
+            values.append(json.dumps(dict(event='logMessage', payload=payload), separators=(',', ':')))
         for _ in range(128):
             try:
-                values.append(json.loads(self._logs.get_nowait()))
+                values.append(self._logs.get_nowait())
             except queue.Empty:
                 break
         return values
@@ -462,15 +503,20 @@ class Client:
         cancel, key = threading.Event(), object()
         complete = defer_action() if track_action else lambda error=None: None
         self._jobs[key] = (context, cancel, complete)
-        # Drive the client execution loop
+        sanitize = self.log_redactor
+        def guarded(fn, *args):
+            with self._redactor_lock: self._job_redactors[key] = sanitize
+            try: return fn(*args)
+            finally:
+                with self._redactor_lock: self._job_redactors.pop(key, None)
         def run():
             value = error = None
             try:
-                value = work(cancel)
+                value = guarded(work, cancel)
             except Exception as failure:
                 error = failure
             if not cancel.is_set() and not self.stop.is_set():
-                self._results.put((key, value, error, apply))
+                self._results.put((key, value, error, lambda *args: guarded(apply, *args)))
                 self._ready.set()
                 self.wake()
         if not self._pool.submit(run, cancel):
@@ -536,6 +582,12 @@ class Client:
                     return
             except ValueError:
                 return
+        if event.event == 'requestNetworkPayload' and self._network_demand():
+            run = self.host.manager.get('run_id')
+            if isinstance(run, str) and 0 < len(run) <= 128:
+                sent, received = self.network.snapshot()
+                self.send('networkPayload', payload=dict(run_id=run, sent_bytes=sent, received_bytes=received))
+            return
         if event.event == 'didReceiveLogSettings' and self.supports('plugin-logs-v1'):
             enabled = event.payload.get('debug_network')
             if type(enabled) is bool:
@@ -650,11 +702,13 @@ def _connect(handler, port, target, identity, host=None, *, descriptor=None, sto
     try:
         # A fixed numeric endpoint prevents proxying or localhost DNS redirection
         socket = connect_loopback(port, target, timeout=1)
+        client = Client(host, identity)
         registration = dict(event='registerPlugin', uuid=identity)
         if host.supports('plugin-protocol-v1'):
             registration['payload'] = dict(capabilities=capabilities, network_debug=True)
+            if client._network_demand():
+                registration['payload']['network_demand'] = True
         socket.send(json.dumps(registration))
-        client = Client(host, identity)
         events = queue.Queue(MAX_INPUT_ITEMS)
         incoming = _IncomingBudget()
         # Read the next runtime value or data segment
@@ -697,7 +751,7 @@ def _connect(handler, port, target, identity, host=None, *, descriptor=None, sto
         reader = threading.Thread(target=read, daemon=True)
         reader.start()
         deadline = handler.next_poll(time.monotonic())
-        network_enabled = host.supports('network-payload-v1') and bool(host.manager.get('run_id'))
+        network_enabled = not client._network_demand() and host.supports('network-payload-v1') and bool(host.manager.get('run_id'))
         network_deadline = time.monotonic() + 1 if network_enabled else None
         backoff = 0
         backoff_until = 0
@@ -715,8 +769,8 @@ def _connect(handler, port, target, identity, host=None, *, descriptor=None, sto
         # Flush queued protocol output to the authenticated host
         def writes():
             with write_lock:
-                for message in client.drain():
-                    socket.send(json.dumps(message, separators=(',', ':'), allow_nan=False))
+                for frame in client._drain_encoded():
+                    socket.send(frame)
         client._flush_control = writes
         if client.supports_theme_rpc():
             try:

@@ -7,10 +7,12 @@ import os
 from pathlib import Path
 import platform
 import subprocess
+import tempfile
 import sys
 import zipfile
 from audit import collect, license_text, resource_graph
 from profiles import package_profiles
+from vault_setup import validate_setup_slots
 from descriptor import capabilities, inspect, prepare
 from project import KINDS, STARTER_KINDS, SCRIPT_KINDS, bundled_runtime_files, distribution_manifest, identity, native_binary_name, package_context, regular, tree_files
 
@@ -42,6 +44,7 @@ def package(kind=None, build=True, project=None, output=None, audit=False, force
         validate_project(project)
     layout = package_context(ROOT, kind, project)
     source, kind, manifest, common = layout.source, layout.kind, layout.manifest, layout.common
+    validate_setup_slots(manifest)
     identity(manifest['UUID'])
     native = kind not in SCRIPT_KINDS
     if host == 'opendeck' and native:
@@ -63,7 +66,10 @@ def package(kind=None, build=True, project=None, output=None, audit=False, force
             run(['cmake', '-S', '.', '-B', 'build', '-DCMAKE_BUILD_TYPE=Release'], source)
             run(['cmake', '--build', 'build', '--config', 'Release'], source)
         elif kind == 'python':
-            run([sys.executable, '-m', 'PyInstaller', '--clean', '--noconfirm', 'counter.spec'], source)
+            # --clean clears PyInstaller's configuration cache. Keep each invocation isolated.
+            with tempfile.TemporaryDirectory(prefix='sdk-pyinstaller-') as config:
+                subprocess.run([sys.executable, '-m', 'PyInstaller', '--clean', '--noconfirm', 'counter.spec'],
+                               cwd=source, env={**os.environ, 'PYINSTALLER_CONFIG_DIR': config}, check=True)
     binary = None
     if native:
         binary = {'go': source / 'build' / exe, 'rust': source / 'target' / 'release' / exe, 'python': source / 'dist' / binary_name / exe, 'cpp': source / 'build' / ('Release' if os.name == 'nt' else '') / exe}[kind]
@@ -126,7 +132,6 @@ def package(kind=None, build=True, project=None, output=None, audit=False, force
     directory.mkdir(parents=True, exist_ok=True)
     label = layout.label + ("-opendeck" if host == "opendeck" else "")
     archive_path = directory / (f'{label}-universal.zip' if host == 'opendeck' else f'{label}-{sys.platform}-{platform.machine()}.zip')
-    import tempfile
     from buildcache import fingerprint, cached, remember
     package_key = fingerprint(contents, {'policy':'zip-deflate-level6-v2','python':sys.version})
     if not force and cached(archive_path, package_key):

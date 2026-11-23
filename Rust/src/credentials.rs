@@ -33,6 +33,32 @@ pub fn secret_with(
     }
     Ok(value.into())
 }
+fn sensitive(key: &str) -> bool {
+    let low = key.to_lowercase();
+    [
+        "password",
+        "secret",
+        "token",
+        "api_key",
+        "api-key",
+        "webhook",
+        "authorization",
+        "cookie",
+    ]
+    .iter()
+    .any(|part| low.contains(part))
+}
+pub(crate) fn secret_settings(settings: &Value) -> Value {
+    Value::Object(
+        settings
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter(|(key, value)| value.is_string() && sensitive(key))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect(),
+    )
+}
 // Expose a credential-safe description of a failure
 pub fn safe_error(failure: crate::Error, settings: &Value, keys: &[&str]) -> crate::Error {
     if let Some(e) = failure.downcast_ref::<crate::service::HTTPError>() {
@@ -41,21 +67,7 @@ pub fn safe_error(failure: crate::Error, settings: &Value, keys: &[&str]) -> cra
     let mut text = failure.to_string();
     if let Some(fields) = settings.as_object() {
         for (key, value) in fields {
-            let low = key.to_lowercase();
-            if !keys.contains(&key.as_str())
-                && ![
-                    "password",
-                    "secret",
-                    "token",
-                    "api_key",
-                    "api-key",
-                    "webhook",
-                    "authorization",
-                    "cookie",
-                ]
-                .iter()
-                .any(|part| low.contains(part))
-            {
+            if !keys.contains(&key.as_str()) && !sensitive(key) {
                 continue;
             }
             if let Some(raw) = value.as_str() {

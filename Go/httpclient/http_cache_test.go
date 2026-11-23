@@ -180,16 +180,16 @@ func TestAutomaticHTTPRedirectTargetAndResetCannotReuseAnOldResponse(t *testing.
 		t.Fatal("different redirect target reused prior fields", result, err)
 	}
 	req, _ := http.NewRequest("GET", server.URL, nil)
-	ticket := Cache.begin(req, "", settings, previewRedactor{}, options)
+	ticket := Cache.begin(req, "", settings, previewRedactor{}, options, true)
 	Cache.Reset()
 	Cache.finish(ticket, &http.Response{StatusCode: 200, Request: req, Header: http.Header{"Etag": []string{`"one"`}}}, HTTPResult{})
 	if len(Cache.entries) != 0 {
 		t.Fatal("completion after settings reset repopulated cache")
 	}
 	response := &http.Response{StatusCode: 200, Request: req, Header: http.Header{"Etag": []string{`"one"`}}}
-	ticket = Cache.begin(req, "", settings, previewRedactor{}, options)
+	ticket = Cache.begin(req, "", settings, previewRedactor{}, options, true)
 	Cache.finish(ticket, response, HTTPResult{Status: 200, Fields: map[string]any{"v": 42}})
-	ticket = Cache.begin(req, "", settings, previewRedactor{}, options)
+	ticket = Cache.begin(req, "", settings, previewRedactor{}, options, true)
 	Cache.mu.Lock()
 	Cache.remove(ticket.key)
 	Cache.mu.Unlock()
@@ -206,7 +206,7 @@ func TestHTTPValidatorCacheBoundsExpiryAndConcurrentWorkers(t *testing.T) {
 	// Both count and byte bounds are exercised without retaining request text
 	for i := range 100 {
 		req, _ := http.NewRequest("GET", fmt.Sprintf("https://fixture.invalid/%d?token=private", i), nil)
-		ticket := Cache.begin(req, "", nil, previewRedactor{}, options)
+		ticket := Cache.begin(req, "", nil, previewRedactor{}, options, true)
 		Cache.store(ticket, httpCacheEntry{data: []byte(strings.Repeat("x", 200<<10)), etag: `"one"`}, false)
 	}
 	if len(Cache.entries) > httpCacheEntries || Cache.bytes > httpCacheBytes || len(Cache.entries) == 0 {
@@ -217,11 +217,11 @@ func TestHTTPValidatorCacheBoundsExpiryAndConcurrentWorkers(t *testing.T) {
 		Cache.entries[key] = entry
 	}
 	req, _ := http.NewRequest("GET", "https://fixture.invalid/new", nil)
-	Cache.begin(req, "", nil, previewRedactor{}, options)
+	Cache.begin(req, "", nil, previewRedactor{}, options, true)
 	if len(Cache.entries) != 0 || Cache.bytes != 0 {
 		t.Fatal("expired data retained")
 	}
-	ticket := Cache.begin(req, "", nil, previewRedactor{}, options)
+	ticket := Cache.begin(req, "", nil, previewRedactor{}, options, true)
 	Cache.store(ticket, httpCacheEntry{data: make([]byte, httpCacheValueBytes+1), etag: `"one"`}, false)
 	if len(Cache.entries) != 0 {
 		t.Fatal("oversized value retained")
@@ -233,7 +233,7 @@ func TestHTTPValidatorCacheBoundsExpiryAndConcurrentWorkers(t *testing.T) {
 			defer wg.Done()
 			for j := range 10 {
 				req, _ := http.NewRequest("GET", fmt.Sprintf("https://fixture.invalid/%d", i), nil)
-				ticket := Cache.begin(req, "", nil, previewRedactor{}, options)
+				ticket := Cache.begin(req, "", nil, previewRedactor{}, options, true)
 				Cache.store(ticket, httpCacheEntry{data: []byte(`{}`), etag: `"one"`}, false)
 				if j == 5 {
 					Cache.Reset()
@@ -293,5 +293,27 @@ func TestSharedPreviewRedaction(t *testing.T) {
 	r := previewRedactor{secrets: fixture.Redaction.Secrets}
 	if got := r.redact(fixture.Redaction.Input, 0); !reflect.DeepEqual(got, fixture.Redaction.Expected) {
 		t.Fatalf("preview mismatch: %#v", got)
+	}
+}
+
+func TestDisplayRequestRetainsFieldsAndSeparatesPreviewValidators(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", "fixture")
+		if r.Header.Get("If-None-Match") != "" {
+			w.WriteHeader(304)
+			return
+		}
+		_, _ = io.WriteString(w, `{"value":"hello","extra":[1]}`)
+	}))
+	defer server.Close()
+	options := Options{Automatic: true, Cache: NewValidatorCache()}
+	settings := map[string]any{"url": server.URL, "fields": map[string]any{"choice": "value"}}
+	display, err := options.DisplayRequest(context.Background(), settings)
+	if err != nil || display.Fields["choice"] != "hello" || display.Preview != nil || len(display.Paths) != 0 {
+		t.Fatal(display, err)
+	}
+	full, err := Request(context.Background(), settings, options)
+	if err != nil || full.Revalidated || full.Preview == nil || len(full.Paths) == 0 {
+		t.Fatal(full, err)
 	}
 }

@@ -1,4 +1,5 @@
-// Package sdk implements the authenticated Stream Dock Manager/Stream Deck protocol v1
+// Package sdk implements Stream Dock Manager protocol v1, OpenAction events for
+// OpenDeck, and plugin protocol features shared with VSD Craft and Elgato Stream Deck.
 package sdk
 
 import (
@@ -24,12 +25,13 @@ const MaxOutputBytes = 8 * MaxMessageBytes
 const MaxLogBytes = MaxMessageBytes
 
 type Surface struct {
-	RequestID      string `json:"request_id,omitempty"`
-	ControlID      string `json:"control_id"`
-	Width          int    `json:"width"`
-	Height         int    `json:"height"`
-	FeedbackTarget string `json:"feedback_target"`
-	Touch          *struct {
+	ActivationToken string `json:"activation_token,omitempty"`
+	RequestID       string `json:"request_id,omitempty"`
+	ControlID       string `json:"control_id"`
+	Width           int    `json:"width"`
+	Height          int    `json:"height"`
+	FeedbackTarget  string `json:"feedback_target"`
+	Touch           *struct {
 		X     int    `json:"x"`
 		Y     int    `json:"y"`
 		Phase string `json:"phase"`
@@ -37,6 +39,7 @@ type Surface struct {
 }
 type Event struct {
 	retained   *incomingLease
+	wire       []byte
 	Event      string          `json:"event"`
 	ID         string          `json:"id,omitempty"`
 	Action     string          `json:"action,omitempty"`
@@ -112,6 +115,7 @@ func Message(event, context string, payload any) Event {
 
 type Client struct {
 	pluginTheme    atomic.Pointer[PluginTheme]
+	wireOutput     bool
 	queueMu        sync.Mutex
 	outputBudget   byteBudget
 	logBudget      byteBudget
@@ -192,15 +196,19 @@ func (c *Client) Send(ctx context.Context, e Event) error {
 		return errors.New("SDK outbound byte budget exceeded")
 	}
 	// The queue owns the payload snapshot used for both validation and accounting
-	e.Payload = append(json.RawMessage(nil), e.Payload...)
-	e.DeviceInfo = append(json.RawMessage(nil), e.DeviceInfo...)
-	if e.Surface != nil {
-		surface := *e.Surface
-		if surface.Touch != nil {
-			touch := *surface.Touch
-			surface.Touch = &touch
+	if c.wireOutput {
+		e = Event{Event: e.Event, wire: encoded}
+	} else {
+		e.Payload = append(json.RawMessage(nil), e.Payload...)
+		e.DeviceInfo = append(json.RawMessage(nil), e.DeviceInfo...)
+		if e.Surface != nil {
+			surface := *e.Surface
+			if surface.Touch != nil {
+				touch := *surface.Touch
+				surface.Touch = &touch
+			}
+			e.Surface = &surface
 		}
-		e.Surface = &surface
 	}
 	select {
 	case <-ctx.Done():
@@ -298,7 +306,7 @@ func connectWithHost(parent context.Context, address, token string, h Handler, n
 	}()
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	c := &Client{out: make(chan Event, 128), logOut: make(chan Event, 128), host: host, identity: token}
+	c := &Client{wireOutput: true, out: make(chan Event, 128), logOut: make(chan Event, 128), host: host, identity: token}
 	c.SetNetworkDebug(host.Manager.DebugNetwork)
 	defer netdebug.Clear(c)
 	defer c.cancelInputs("")
@@ -322,7 +330,11 @@ func connectWithHost(parent context.Context, address, token string, h Handler, n
 	}
 	registration := Event{Event: "registerPlugin"}
 	if host.Supports("plugin-protocol-v1") {
-		registration = Message("registerPlugin", "", map[string]any{"capabilities": capabilities, "network_debug": true})
+		payload := map[string]any{"capabilities": capabilities, "network_debug": true}
+		if c.networkDemand() {
+			payload["network_demand"] = true
+		}
+		registration = Message("registerPlugin", "", payload)
 	}
 	registration.UUID = token
 	if err = conn.WriteJSON(registration); err != nil {
@@ -415,7 +427,7 @@ func connectWithHost(parent context.Context, address, token string, h Handler, n
 		}
 	}()
 
-	if networkRunID != "" {
+	if networkRunID != "" && !c.networkDemand() {
 		// Report aggregate traffic under a non-secret run identifier until cancellation
 		go func() {
 			ticker := time.NewTicker(time.Second)

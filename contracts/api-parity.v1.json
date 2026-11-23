@@ -9,9 +9,562 @@
         "contracts/fixtures/services-v1.json",
         "contracts/fixtures/storage-v1.json",
         "contracts/fixtures/extensions-v1.json",
-        "contracts/fixtures/helpers-v1.json"
+        "contracts/fixtures/helpers-v1.json",
+        "contracts/fixtures/vault-slots-v1.json",
+        "contracts/fixtures/permissions-v1.json"
     ],
     "features": [
+        {
+            "id": "plugin-permissions",
+            "implementations": {
+                "go": {
+                    "source": "Go/permissions.go",
+                    "symbol": "RequestPermissions"
+                },
+                "rust": {
+                    "source": "Rust/src/permissions.rs",
+                    "symbol": "request_permissions"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/permissions.py",
+                    "symbol": "request_permissions"
+                },
+                "javascript": {
+                    "source": "Node/src/permissions.ts",
+                    "symbol": "requestPermissions"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/permissions_test.go",
+                        "case": "TestPermissionServiceContract",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/permission_services.rs",
+                        "case": "permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_permissions.py",
+                        "case": "test_permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/permission-services.test.mjs",
+                        "case": "permission service contract",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "plugin-http-broker",
+            "implementations": {
+                "go": {
+                    "source": "Go/permissions.go",
+                    "symbol": "SummarizeClipboard"
+                },
+                "rust": {
+                    "source": "Rust/src/permissions.rs",
+                    "symbol": "summarize_clipboard"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/permissions.py",
+                    "symbol": "summarize_clipboard"
+                },
+                "javascript": {
+                    "source": "Node/src/permissions.ts",
+                    "symbol": "summarizeClipboard"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/permissions_test.go",
+                        "case": "TestPermissionServiceContract",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/permission_services.rs",
+                        "case": "permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_permissions.py",
+                        "case": "test_permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/permission-services.test.mjs",
+                        "case": "permission service contract",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "local-https-webhook",
+            "implementations": {
+                "go": {
+                    "source": "Go/permissions.go",
+                    "symbol": "SendExampleWebhook"
+                },
+                "rust": {
+                    "source": "Rust/src/permissions.rs",
+                    "symbol": "send_example_webhook"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/permissions.py",
+                    "symbol": "send_example_webhook"
+                },
+                "javascript": {
+                    "source": "Node/src/permissions.ts",
+                    "symbol": "sendExampleWebhook"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/permissions_test.go",
+                        "case": "TestPermissionServiceContract",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/permission_services.rs",
+                        "case": "permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_permissions.py",
+                        "case": "test_permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/permission-services.test.mjs",
+                        "case": "permission service contract",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "local-http-webhook",
+            "implementations": {
+                "go": {
+                    "source": "Go/permissions.go",
+                    "symbol": "SendLocalWebhook"
+                },
+                "rust": {
+                    "source": "Rust/src/permissions.rs",
+                    "symbol": "send_local_webhook"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/permissions.py",
+                    "symbol": "send_local_webhook"
+                },
+                "javascript": {
+                    "source": "Node/src/permissions.ts",
+                    "symbol": "sendLocalWebhook"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/permissions_test.go",
+                        "case": "TestPermissionServiceContract",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/permission_services.rs",
+                        "case": "permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_permissions.py",
+                        "case": "test_permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/permission-services.test.mjs",
+                        "case": "permission service contract",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "plugin-vault-references",
+            "implementations": {
+                "go": {
+                    "source": "Go/permissions.go",
+                    "symbol": "SelectVaultEntry"
+                },
+                "rust": {
+                    "source": "Rust/src/permissions.rs",
+                    "symbol": "select_vault_entry"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/permissions.py",
+                    "symbol": "select_vault_entry"
+                },
+                "javascript": {
+                    "source": "Node/src/permissions.ts",
+                    "symbol": "selectVaultEntry"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/permissions_test.go",
+                        "case": "TestPermissionServiceContract",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/permission_services.rs",
+                        "case": "permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_permissions.py",
+                        "case": "test_permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/permission-services.test.mjs",
+                        "case": "permission service contract",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "plugin-vault-writes",
+            "implementations": {
+                "go": {
+                    "source": "Go/vault.go",
+                    "symbol": "WriteVaultSecret"
+                },
+                "rust": {
+                    "source": "Rust/src/vault_values.rs",
+                    "symbol": "write_vault_secret"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/vault.py",
+                    "symbol": "write_secret"
+                },
+                "javascript": {
+                    "source": "Node/src/vault-values.ts",
+                    "symbol": "writeSecret"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/permissions_test.go",
+                        "case": "TestPermissionServiceContract",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/permission_services.rs",
+                        "case": "permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_permissions.py",
+                        "case": "test_permission_service_contract",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/permission-services.test.mjs",
+                        "case": "permission service contract",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "plugin-vault-values",
+            "implementations": {
+                "go": {
+                    "source": "Go/vault.go",
+                    "symbol": "ReadVaultText"
+                },
+                "rust": {
+                    "source": "Rust/src/vault_values.rs",
+                    "symbol": "read_value"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/vault.py",
+                    "symbol": "read_value"
+                },
+                "javascript": {
+                    "source": "Node/src/vault-values.ts",
+                    "symbol": "readValue"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/vault_test.go",
+                        "case": "TestVaultSlotRPC",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/vault_test.go",
+                        "case": "TestVaultMalformedResult",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/vault_values.rs",
+                        "case": "vault_read_values_and_secrets_are_exact_and_redacted",
+                        "required": true
+                    },
+                    {
+                        "source": "Rust/tests/vault_values.rs",
+                        "case": "vault_requires_separate_capabilities",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_vault.py",
+                        "case": "test_exact_authenticated_rpc_and_redacted_typed_value",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_vault.py",
+                        "case": "test_secret_opt_in_redaction_and_exact_rpc",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/vault-values.test.mjs",
+                        "case": "Vault text and secret reads are exact, separately gated and redacted",
+                        "required": true
+                    },
+                    {
+                        "source": "Node/tests/vault-values.test.mjs",
+                        "case": "Vault failures retain only allowlisted codes and never host messages",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "plugin-text-references",
+            "implementations": {
+                "go": {
+                    "source": "Go/text_references.go",
+                    "symbol": "FormatText"
+                },
+                "rust": {
+                    "source": "Rust/src/vault_values.rs",
+                    "symbol": "format_text"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/runtime.py",
+                    "symbol": "format_text"
+                },
+                "javascript": {
+                    "source": "Node/src/text-references.ts",
+                    "symbol": "formatText"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/text_references_test.go",
+                        "case": "TestFormatText",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/vault_values.rs",
+                        "case": "format_text_negotiates_only_references_and_checks_exact_result",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_vault.py",
+                        "case": "test_format_text_skips_literals_and_validates_reference_rpc",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/vault-values.test.mjs",
+                        "case": "text formatting skips literals and delegates exact references only to a capable host",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "plugin-vault-location",
+            "implementations": {
+                "go": {
+                    "source": "Go/vault.go",
+                    "symbol": "ReadVaultLocation"
+                },
+                "rust": {
+                    "source": "Rust/src/vault_values.rs",
+                    "symbol": "read_location"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/vault.py",
+                    "symbol": "read_location"
+                },
+                "javascript": {
+                    "source": "Node/src/vault-values.ts",
+                    "symbol": "readLocation"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/vault_test.go",
+                        "case": "TestSharedLocation",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/vault_values.rs",
+                        "case": "shared_location_reads_only_coordinates",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_vault.py",
+                        "case": "test_shared_location",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/vault-values.test.mjs",
+                        "case": "Shared location reads only coordinates",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "plugin-vault-secret-sharing",
+            "implementations": {
+                "go": {
+                    "source": "Go/vault.go",
+                    "symbol": "ReadVaultSecret"
+                },
+                "rust": {
+                    "source": "Rust/src/vault_values.rs",
+                    "symbol": "read_secret"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/vault.py",
+                    "symbol": "read_secret"
+                },
+                "javascript": {
+                    "source": "Node/src/vault-values.ts",
+                    "symbol": "readSecret"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/vault_test.go",
+                        "case": "TestVaultSlotRPC",
+                        "required": true
+                    },
+                    {
+                        "source": "Go/vault_test.go",
+                        "case": "TestVaultMalformedResult",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/vault_values.rs",
+                        "case": "vault_read_values_and_secrets_are_exact_and_redacted",
+                        "required": true
+                    },
+                    {
+                        "source": "Rust/tests/vault_values.rs",
+                        "case": "vault_requires_separate_capabilities",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_vault.py",
+                        "case": "test_exact_authenticated_rpc_and_redacted_typed_value",
+                        "required": true
+                    },
+                    {
+                        "source": "Python/tests/test_vault.py",
+                        "case": "test_secret_opt_in_redaction_and_exact_rpc",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/vault-values.test.mjs",
+                        "case": "Vault text and secret reads are exact, separately gated and redacted",
+                        "required": true
+                    },
+                    {
+                        "source": "Node/tests/vault-values.test.mjs",
+                        "case": "Vault failures retain only allowlisted codes and never host messages",
+                        "required": true
+                    }
+                ]
+            }
+        },
+
         {
             "id": "plugin-theme-rpc",
             "implementations": {
@@ -86,12 +639,22 @@
             "conformance": {
                 "go": [
                     {
+                        "source": "Go/client_test.go",
+                        "case": "TestAuthenticatedLifecycleAndShutdown",
+                        "required": true
+                    },
+                    {
                         "source": "Go/protocol_test.go",
                         "case": "TestSharedHostNegotiationAndLegacyFallback",
                         "required": true
                     }
                 ],
                 "rust": [
+                    {
+                        "source": "Rust/tests/runtime.rs",
+                        "case": "portable_registration_with_descriptor",
+                        "required": true
+                    },
                     {
                         "source": "Rust/tests/protocol.rs",
                         "case": "shared_protocol_and_legacy_fallback",
@@ -100,12 +663,22 @@
                 ],
                 "python": [
                     {
+                        "source": "Python/tests/test_runtime.py",
+                        "case": "test_portable_registration_with_descriptor",
+                        "required": true
+                    },
+                    {
                         "source": "Python/tests/test_sdk.py",
                         "case": "test_shared_protocol_fields_and_feature_gates",
                         "required": true
                     }
                 ],
                 "javascript": [
+                    {
+                        "source": "Node/tests/session-lifecycle.test.mjs",
+                        "case": "portable registration with descriptor",
+                        "required": true
+                    },
                     {
                         "source": "Node/tests/conformance.mjs",
                         "case": "frameCapabilities",
@@ -1556,6 +2129,57 @@
             }
         },
         {
+            "id": "vsd-craft-settings-request",
+            "implementations": {
+                "go": {
+                    "source": "Go/protocol.go",
+                    "symbol": "RequestVSDCraftSettings"
+                },
+                "rust": {
+                    "source": "Rust/src/runtime.rs",
+                    "symbol": "request_vsd_craft_settings"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/runtime.py",
+                    "symbol": "request_vsd_craft_settings"
+                },
+                "javascript": {
+                    "source": "Node/src/runtime.ts",
+                    "symbol": "requestVsdCraftSettings"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/host_storage_test.go",
+                        "case": "TestVSDCraftSettingsRequest",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/hoststorage.rs",
+                        "case": "vsd_craft_settings_uses_registration_uuid_and_normal_async_events",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_hoststorage.py",
+                        "case": "test_shared_host_storage_and_portable_settings",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/hoststorage.mjs",
+                        "case": "hostStorageConformance",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
             "id": "host-private-storage",
             "implementations": {
                 "go": {
@@ -2294,6 +2918,57 @@
                     {
                         "source": "Node/tests/portable-image.test.mjs",
                         "case": "portable image data URI",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "network-demand-v1",
+            "implementations": {
+                "go": {
+                    "source": "Go/completion.go",
+                    "symbol": "networkDemand"
+                },
+                "rust": {
+                    "source": "Rust/src/runtime.rs",
+                    "symbol": "network_demand"
+                },
+                "javascript": {
+                    "source": "Node/src/runtime.ts",
+                    "symbol": "networkDemand"
+                },
+                "python": {
+                    "source": "Python/stream_dock_manager_sdk/runtime.py",
+                    "symbol": "_network_demand"
+                }
+            },
+            "conformance": {
+                "go": [
+                    {
+                        "source": "Go/network_test.go",
+                        "case": "TestOptionalNetworkDemand",
+                        "required": true
+                    }
+                ],
+                "rust": [
+                    {
+                        "source": "Rust/tests/logging_parity.rs",
+                        "case": "optional_network_demand",
+                        "required": true
+                    }
+                ],
+                "javascript": [
+                    {
+                        "source": "Node/tests/network-demand.test.mjs",
+                        "case": "optional network demand",
+                        "required": true
+                    }
+                ],
+                "python": [
+                    {
+                        "source": "Python/tests/test_logging_parity.py",
+                        "case": "test_optional_network_demand",
                         "required": true
                     }
                 ]

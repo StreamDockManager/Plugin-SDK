@@ -4,6 +4,7 @@ export type WorkerFunction<Input, Result> = (input: Input) => Result | Promise<R
 interface Job {
     url: URL;
     input: unknown;
+    reserved: number;
     finish: (error?: unknown, value?: unknown) => void;
     worker?: Worker;
     gate?: Int32Array<SharedArrayBuffer>;
@@ -36,30 +37,59 @@ export class WorkerPool {
     private pending: Job[] = [];
     private active = new Set<Job>();
     private closed = false;
+    private queuedBytes = 0;
+    constructor(
+        private readonly options: { maxBufferBytes?: number; maxQueuedBufferBytes?: number } = {},
+    ) {
+        for (const limit of Object.values(options))
+            if (!Number.isSafeInteger(limit) || limit < 0)
+                throw RangeError('Invalid worker buffer budget');
+    }
     // Admit a bounded worker job with cancellation support
-    submit<T>(url: URL, input: unknown, signal?: AbortSignal): Promise<T> {
+    submit<T>(
+        url: URL,
+        input: unknown,
+        signal?: AbortSignal,
+        transfer: ArrayBuffer[] = [],
+    ): Promise<T> {
         if (this.closed || this.pending.length >= 32)
             return Promise.reject(Error('Worker queue full or closed'));
         if (signal?.aborted) return Promise.reject(signal.reason ?? Error('Worker cancelled'));
         return new Promise((resolve, reject) => {
+            const limited =
+                this.options.maxBufferBytes !== undefined ||
+                this.options.maxQueuedBufferBytes !== undefined;
+            const size = limited
+                ? ownedBuffers(input).reduce((sum, buffer) => sum + buffer.byteLength, 0)
+                : 0;
+            const reserved = this.active.size >= 4 ? size : 0;
+            if (
+                size > (this.options.maxBufferBytes ?? Infinity) ||
+                this.queuedBytes + reserved > (this.options.maxQueuedBufferBytes ?? Infinity)
+            )
+                throw RangeError('Worker input exceeds buffer budget');
             let settled = false;
             // Cancel a queued or running worker job
             const abort = () => job.finish(signal?.reason ?? Error('Worker cancelled'));
             const job: Job = {
                 url,
-                input: structuredClone(input),
+                input: structuredClone(input, { transfer }),
+                reserved,
                 // Settle the worker job and release its reservation
                 finish: (error, value) => {
                     if (settled) return;
                     settled = true;
                     signal?.removeEventListener('abort', abort);
                     this.pending = this.pending.filter((candidate) => candidate !== job);
+                    this.queuedBytes -= job.reserved;
+                    job.reserved = 0;
                     job.input = undefined;
                     if (error !== undefined) reject(error);
                     else resolve(value as T);
                     this.release(job);
                 },
             };
+            this.queuedBytes += reserved;
             if (signal?.aborted) return abort();
             signal?.addEventListener('abort', abort, { once: true });
             this.pending.push(job);
@@ -96,6 +126,8 @@ export class WorkerPool {
     private pump(): void {
         while (!this.closed && this.active.size < 4 && this.pending.length) {
             const job = this.pending.shift()!;
+            this.queuedBytes -= job.reserved;
+            job.reserved = 0;
             this.active.add(job);
             try {
                 job.gate = new Int32Array(new SharedArrayBuffer(4));

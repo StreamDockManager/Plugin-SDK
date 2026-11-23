@@ -544,6 +544,13 @@ try {
             (error) => error.status === 429 && error.retryAt > Date.now(),
         );
         const cache = new ValidatorCache();
+        const display = await request(
+            { url, fields: { value: 'value' } },
+            { preview: false, cache, automatic: true },
+        );
+        assert.equal(display.fields.value, 3);
+        assert.equal(display.preview, null);
+        assert.deepEqual(display.paths, []);
         await request({ url, fields: { value: 'value' } }, { cache, automatic: true });
         assert(
             (await request({ url, fields: { value: 'value' } }, { cache, automatic: true }))

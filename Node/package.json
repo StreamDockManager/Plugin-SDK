@@ -1,6 +1,7 @@
 {
     "name": "stream-dock-manager-plugin-sdk",
-    "version": "0.1.0",
+    "version": "0.1.1",
+    "description": "Node.js LTS SDK for Stream Dock Manager plugins with OpenDeck (OpenAction) export and protocol features shared with Elgato Stream Deck.",
     "type": "module",
     "license": "MIT",
     "engines": {
@@ -121,6 +122,14 @@
         "./discovery": {
             "types": "./dist/src/discovery.d.ts",
             "import": "./dist/src/discovery.js"
+        },
+        "./permissions": {
+            "types": "./dist/src/permissions.d.ts",
+            "import": "./dist/src/permissions.js"
+        },
+        "./vault-values": {
+            "types": "./dist/src/vault-values.d.ts",
+            "import": "./dist/src/vault-values.js"
         }
     },
     "scripts": {
@@ -138,14 +147,14 @@
         "jpeg-js": "0.4.4",
         "pngjs": "7.0.0",
         "omggif": "1.0.10",
-        "ws": "8.22.2",
+        "ws": "8.23.0",
         "@types/ws": "8.18.2"
     },
     "peerDependencies": {
         "jpeg-js": "0.4.4",
         "pngjs": "7.0.0",
         "omggif": "1.0.10",
-        "ws": "8.22.2",
+        "ws": "8.23.0",
         "@types/ws": "8.18.2"
     },
     "peerDependenciesMeta": {

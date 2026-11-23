@@ -5,6 +5,7 @@ package connectors
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	discovery "github.com/StreamDockManager/Plugin-SDK/Go/discovery"
 	"slices"
@@ -36,7 +37,43 @@ type Driver interface {
 	Display(any, string, map[string]any) string
 	Close()
 }
+
+// ClientReader is an optional connector read hook for authenticated host RPC.
+type ClientReader interface {
+	ReadWithClient(context.Context, *sdk.Client, string, map[string]any) (any, error)
+}
+
+func readDriver(ctx context.Context, client *sdk.Client, driver Driver, action string, settings map[string]any) (any, error) {
+	if reader, ok := driver.(ClientReader); ok && client != nil {
+		return reader.ReadWithClient(ctx, client, action, settings)
+	}
+	return driver.Read(ctx, settings)
+}
+
+// An explicit host authorization failure is not a transient provider failure.
+func discardManagedSample(err error) bool {
+	var rpc *sdk.RPCError
+	if !errors.As(err, &rpc) {
+		return false
+	}
+	switch rpc.Code {
+	case "needs_setup", "vault_locked", "permission_denied", "not_declared", "operation_unavailable", "unsupported", "stale_revision":
+		return true
+	default:
+		return false
+	}
+}
+
+type hostClientKey struct{}
+
+// HostClient returns the authenticated client for the current connector operation.
+func HostClient(ctx context.Context) *sdk.Client {
+	client, _ := ctx.Value(hostClientKey{}).(*sdk.Client)
+	return client
+}
+
 type Options struct {
+	UsesVault        bool
 	ReadTimeout      time.Duration
 	CommandTimeout   time.Duration
 	AuthorizeTimeout time.Duration
@@ -52,6 +89,7 @@ type Options struct {
 type request struct {
 	ctx            context.Context
 	id, action, op string
+	actionUUID     string
 	requestID      string
 	scope          string
 	settings       map[string]any
@@ -62,6 +100,7 @@ type result struct {
 	request    request
 	key        string
 	generation uint64
+	discard    bool
 	value      any
 	choices    []Choice
 	outcome    Outcome
@@ -85,7 +124,7 @@ func Factory(options Options) engine.Factory {
 	return func(e *engine.Engine) engine.Feature {
 		r := &Runtime{Engine: e, options: options, resources: polling.NewResources(), messages: map[string]string{}}
 		r.driver = options.New(e.WakeChannel)
-		return engine.Feature{Action: r.action, Inspector: r.inspector, Settings: r.settings, Unbound: r.unbound, Close: r.close, After: r.after,
+		return engine.Feature{Action: r.action, Inspector: r.inspector, Before: r.beforeSettings, Unbound: r.unbound, Close: r.close, After: r.after,
 			Status: r.status, Poll: r.poll, Deadline: r.deadline, Visuals: options.Visuals,
 			AdditiveDial: func(a string) bool {
 				return r.dialAction(engine.Action(a))
@@ -149,7 +188,7 @@ func (r *Runtime) action(ctx context.Context, c *sdk.Client, ev sdk.Event, b eng
 	if ev.Event != "dialRotate" {
 		ticks = 0
 	}
-	return r.enqueue(c, request{ctx: ctx, id: ev.Context, action: a, settings: r.bindingSettings(b), ticks: ticks})
+	return r.enqueue(c, request{ctx: ctx, id: ev.Context, action: a, actionUUID: ev.Action, settings: r.bindingSettings(b), ticks: ticks})
 }
 
 // Route inspector discovery and connector-specific requests
@@ -175,7 +214,7 @@ func (r *Runtime) inspector(ctx context.Context, c *sdk.Client, ev sdk.Event) (b
 	if p.Scope != "plugin" {
 		r.sharedSettings(s)
 	}
-	return true, r.enqueue(c, request{ctx: ctx, id: ev.Context, action: a, op: p.Op, requestID: p.RequestID, scope: p.Scope, settings: s})
+	return true, r.enqueue(c, request{ctx: ctx, id: ev.Context, action: a, actionUUID: ev.Action, op: p.Op, requestID: p.RequestID, scope: p.Scope, settings: s})
 }
 
 // Queue a bounded connector request
@@ -186,7 +225,9 @@ func (r *Runtime) enqueue(c *sdk.Client, q request) error {
 			payload["request_id"] = q.requestID
 			payload["available"] = false
 		}
-		return c.Send(q.ctx, sdk.Message("sendToPropertyInspector", q.id, payload))
+		reply := sdk.Message("sendToPropertyInspector", q.id, payload)
+		reply.Action = q.actionUUID
+		return c.Send(q.ctx, reply)
 	}
 	q.complete = sdk.DeferAction(q.ctx)
 	q.settings = engine.CloneSettings(q.settings)
@@ -195,13 +236,17 @@ func (r *Runtime) enqueue(c *sdk.Client, q request) error {
 }
 
 // Initialize connector work for the active bindings
-func (r *Runtime) start(ctx context.Context, _ *sdk.Client) error {
+func (r *Runtime) start(ctx context.Context, c *sdk.Client) error {
 	if r.busy {
 		return nil
 	}
 	for len(r.queue) > 0 {
 		q := r.queue[0]
+		r.queue[0] = request{}
 		r.queue = r.queue[1:]
+		if len(r.queue) == 0 {
+			r.queue = nil
+		}
 		if q.ctx.Err() != nil {
 			q.complete(q.ctx.Err())
 			continue
@@ -218,7 +263,7 @@ func (r *Runtime) start(ctx context.Context, _ *sdk.Client) error {
 				return "", nil, job.Err()
 			}
 			timeout := r.operationTimeout(q.op, false)
-			job, cancel := context.WithTimeout(job, timeout)
+			job, cancel := context.WithTimeout(context.WithValue(job, hostClientKey{}, c), timeout)
 			defer cancel()
 			v := result{request: q}
 			var err error
@@ -226,7 +271,7 @@ func (r *Runtime) start(ctx context.Context, _ *sdk.Client) error {
 			case "discover":
 				v.choices, err = r.driver.Discover(job, q.settings)
 			case "test":
-				v.value, err = r.driver.Read(job, q.settings)
+				v.value, err = readDriver(job, c, r.driver, q.actionUUID, q.settings)
 				v.outcome.Message = "Connection succeeded"
 				if check, ok := v.value.(interface{ TestResult() string }); ok {
 					v.outcome.Message = check.TestResult()
@@ -276,7 +321,9 @@ func (r *Runtime) start(ctx context.Context, _ *sdk.Client) error {
 					}
 					payload = reply.Payload
 				}
-				if err := c.Send(ctx, sdk.Message("sendToPropertyInspector", q.id, payload)); err != nil {
+				reply := sdk.Message("sendToPropertyInspector", q.id, payload)
+				reply.Action = q.actionUUID
+				if err := c.Send(ctx, reply); err != nil {
 					return err
 				}
 			}
@@ -299,6 +346,7 @@ func (r *Runtime) start(ctx context.Context, _ *sdk.Client) error {
 	}
 	key := keys[0]
 	var settings map[string]any
+	var actionUUID string
 	shortest := time.Duration(1<<63 - 1)
 	ids := make([]string, 0, len(r.Bindings))
 	for id := range r.Bindings {
@@ -314,6 +362,7 @@ func (r *Runtime) start(ctx context.Context, _ *sdk.Client) error {
 			}
 			if settings == nil || interval < shortest {
 				settings, shortest = s, interval
+				actionUUID = r.Bindings[id].Action
 			}
 		}
 	}
@@ -332,13 +381,14 @@ func (r *Runtime) start(ctx context.Context, _ *sdk.Client) error {
 		if job.Err() != nil {
 			return "", nil, job.Err()
 		}
-		job, cancel := context.WithTimeout(job, r.operationTimeout("", true))
+		job, cancel := context.WithTimeout(context.WithValue(job, hostClientKey{}, c), r.operationTimeout("", true))
 		defer cancel()
-		value, err := r.driver.Read(job, settings)
+		value, err := readDriver(job, c, r.driver, actionUUID, settings)
+		discard := discardManagedSample(err)
 		if err != nil {
 			err = SafeError(err, settings)
 		}
-		return "", result{key: key, generation: generation, value: value}, err
+		return "", result{key: key, generation: generation, value: value, discard: discard}, err
 	}, func(ctx context.Context, c *sdk.Client, j engine.JobResult, _ engine.BackgroundJob) error {
 		defer stop()
 		ctx = context.WithoutCancel(ctx)
@@ -348,7 +398,13 @@ func (r *Runtime) start(ctx context.Context, _ *sdk.Client) error {
 			v = result{key: key, generation: generation}
 		}
 		previous := r.resources.States[v.key]
-		if r.resources.Complete(v.key, v.generation, v.value, j.Err != nil, r.Time(), 0.5, RetryAt(j.Err)) {
+		accepted := false
+		if v.discard {
+			accepted = r.resources.CompleteInvalidated(v.key, v.generation, r.Time(), 0.5, RetryAt(j.Err))
+		} else {
+			accepted = r.resources.Complete(v.key, v.generation, v.value, j.Err != nil, r.Time(), 0.5, RetryAt(j.Err))
+		}
+		if accepted {
 			if c != nil && c.Supports("plugin-logs-v1") {
 				if j.Err != nil {
 					failures := previous.Failures + 1
@@ -388,6 +444,22 @@ func (r *Runtime) render(ctx context.Context, c *sdk.Client) error {
 	return nil
 }
 
+func (r *Runtime) needsTick() bool {
+	if r.options.Tick <= 0 || len(r.Bindings) == 0 {
+		return false
+	}
+	driver, conditional := r.driver.(interface{ NeedsTick(any, string) bool })
+	if !conditional {
+		return true
+	}
+	for id, b := range r.Bindings {
+		if state, ok := r.resources.Snapshot(id); ok && state.Available && driver.NeedsTick(state.LastValue, engine.Action(b.Action)) {
+			return true
+		}
+	}
+	return false
+}
+
 // Apply pending connector work and due polling results
 func (r *Runtime) poll(ctx context.Context, c *sdk.Client) (bool, error) {
 	if source, ok := r.driver.(interface{ Changed() bool }); ok && !r.busy && source.Changed() {
@@ -396,7 +468,7 @@ func (r *Runtime) poll(ctx context.Context, c *sdk.Client) (bool, error) {
 			r.resources.States[key] = state
 		}
 	}
-	if r.options.Tick > 0 && !r.Time().Before(r.nextTick) {
+	if !r.Time().Before(r.nextTick) && r.needsTick() {
 		r.nextTick = r.Time().Add(r.options.Tick)
 		if err := r.render(ctx, c); err != nil {
 			return true, err
@@ -426,7 +498,7 @@ func (r *Runtime) deadline(now time.Time) time.Time {
 			at = due
 		}
 	}
-	if len(r.Bindings) > 0 && r.options.Tick > 0 {
+	if r.needsTick() {
 		if r.nextTick.IsZero() {
 			return now
 		}
@@ -437,8 +509,41 @@ func (r *Runtime) deadline(now time.Time) time.Time {
 	return at
 }
 
+func (r *Runtime) beforeSettings(_ context.Context, _ *sdk.Client, ev sdk.Event) (bool, error) {
+	switch ev.Event {
+	case "streamDockManagerPermissionsChanged":
+		if r.options.UsesVault {
+			r.settings("")
+			r.watch()
+		}
+	case "didReceiveSettings":
+		r.settings(ev.Context)
+	case "didReceiveGlobalSettings":
+		next := ev.Data().Settings
+		changed := len(r.options.SharedKeys) == 0
+		for _, key := range r.options.SharedKeys {
+			previous, was := r.Global[key]
+			value, has := next[key]
+			if was != has || !engine.FeedbackEqual(previous, value) {
+				changed = true
+				break
+			}
+		}
+		if !changed {
+			r.UpdateGlobalSettings(next, "connector-work")
+			return true, nil
+		}
+		r.settings("")
+	}
+	return false, nil
+}
+
 // Invalidate connector state after settings change
-func (r *Runtime) settings(string) {
+func (r *Runtime) settings(id string) {
+	if id != "" && len(r.options.SharedKeys) > 0 {
+		r.cancelBinding(id)
+		return
+	}
 	r.CancelJob("connector-work")
 	r.busy = false
 	r.activeID = ""
@@ -458,7 +563,7 @@ func (r *Runtime) settings(string) {
 // Release work and watchers belonging to a removed binding
 func (r *Runtime) unbound(id string) {
 	r.resources.Unwatch(id)
-	delete(r.messages, id)
+	r.cancelBinding(id)
 	if len(r.Bindings) == 0 {
 		r.settings("")
 	} else {
@@ -480,16 +585,29 @@ func (r *Runtime) after(_ context.Context, _ *sdk.Client, ev sdk.Event) error {
 	if _, bound := r.Bindings[ev.Context]; bound {
 		return nil
 	}
+	r.cancelBinding(ev.Context)
+	if len(r.Bindings) == 0 {
+		r.driver.Close()
+	}
+	return nil
+}
+
+func (r *Runtime) cancelBinding(id string) {
+	delete(r.messages, id)
 	retained := r.queue[:0]
 	for _, q := range r.queue {
-		if q.id == ev.Context {
+		if q.id == id {
 			q.complete(context.Canceled)
 		} else {
 			retained = append(retained, q)
 		}
 	}
+	clear(r.queue[len(retained):])
 	r.queue = retained
-	if r.activeID == ev.Context {
+	if len(r.queue) == 0 {
+		r.queue = nil
+	}
+	if r.activeID == id {
 		r.CancelJob("connector-work")
 		r.busy = false
 		r.activeID = ""
@@ -498,10 +616,6 @@ func (r *Runtime) after(_ context.Context, _ *sdk.Client, ev sdk.Event) error {
 			r.activeComplete = nil
 		}
 	}
-	if len(r.Bindings) == 0 {
-		r.driver.Close()
-	}
-	return nil
 }
 
 // Merge connector and binding-specific settings

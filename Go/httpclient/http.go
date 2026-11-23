@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	sdk "github.com/StreamDockManager/Plugin-SDK/Go"
 	"github.com/StreamDockManager/Plugin-SDK/Go/httptrack"
 	"io"
 	"math"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"sort"
@@ -278,6 +280,9 @@ func RequestHTTP(ctx context.Context, s map[string]any) (HTTPResult, error) {
 }
 
 type Options struct {
+	// VaultURL is an explicitly authorized secret endpoint. Its path, response,
+	// and validators must never enter diagnostics or a shared cache.
+	VaultURL      *sdk.VaultSecret
 	Cache         *ValidatorCache
 	Automatic     bool
 	StatusOnly    bool
@@ -285,8 +290,17 @@ type Options struct {
 	AllowUserInfo bool
 }
 
+// DisplayRequest extracts configured fields without generating an inspector preview or path list.
+func (o Options) DisplayRequest(ctx context.Context, settings map[string]any) (HTTPResult, error) {
+	return request(ctx, settings, o, false)
+}
+
 // Perform a bounded HTTP request with preview and error handling
-func Request(ctx context.Context, s map[string]any, options Options) (result HTTPResult, requestErr error) {
+func Request(ctx context.Context, s map[string]any, options Options) (HTTPResult, error) {
+	return request(ctx, s, options, true)
+}
+
+func request(ctx context.Context, s map[string]any, options Options, preview bool) (result HTTPResult, requestErr error) {
 	result = HTTPResult{Fields: map[string]any{}, Missing: []string{}}
 	paths := map[string][]pathPart{}
 	redactor := newPreviewRedactor(s)
@@ -311,13 +325,26 @@ func Request(ctx context.Context, s map[string]any, options Options) (result HTT
 	if options.Automatic && method != "GET" && method != "HEAD" {
 		return result, fmt.Errorf("automatic HTTP requests must be GET or HEAD")
 	}
-	raw, err := envReferences(configvalue.String(s, "url", ""))
+	var raw string
+	var err error
+	if options.VaultURL != nil {
+		raw = options.VaultURL.Reveal()
+		options.Cache, options.NoRedirect, options.StatusOnly = nil, true, true
+	} else {
+		raw, err = envReferences(configvalue.String(s, "url", ""))
+	}
 	if err != nil {
 		return result, err
 	}
 	u, err := url.Parse(raw)
 	if err != nil || u.Hostname() == "" || (u.Scheme != "https" && u.Scheme != "http") || (u.User != nil && !options.AllowUserInfo) {
 		return result, fmt.Errorf("request URL must be HTTP(S) without embedded credentials")
+	}
+	if options.VaultURL != nil {
+		addr, _ := netip.ParseAddr(u.Hostname())
+		if u.User != nil || u.Fragment != "" || (u.Scheme != "https" && !addr.IsLoopback()) {
+			return result, fmt.Errorf("Vault webhooks require HTTPS or a loopback HTTP address")
+		}
 	}
 	body, err := envReferences(configvalue.String(s, "body", ""))
 	if err != nil {
@@ -343,7 +370,7 @@ func Request(ctx context.Context, s map[string]any, options Options) (result HTT
 		}
 	}
 	redactor = redactor.forRequest(req, body)
-	ticket := options.Cache.begin(req, body, s, redactor, options)
+	ticket := options.Cache.begin(req, body, s, redactor, options, preview)
 	client := http.Client{CheckRedirect: func(next *http.Request, via []*http.Request) error {
 		if options.NoRedirect {
 			return http.ErrUseLastResponse
@@ -357,7 +384,11 @@ func Request(ctx context.Context, s map[string]any, options Options) (result HTT
 		return nil
 	}}
 	start := time.Now()
-	resp, err := httptrack.TrackHTTPClient(&client).Do(req)
+	sender := &client
+	if options.VaultURL == nil {
+		sender = httptrack.TrackHTTPClient(sender)
+	}
+	resp, err := sender.Do(req)
 	result.DurationMS = time.Since(start).Milliseconds()
 	if err != nil {
 		if ctx.Err() != nil {
@@ -394,14 +425,18 @@ func Request(ctx context.Context, s map[string]any, options Options) (result HTT
 	decoder.UseNumber()
 	var root any
 	if err = decoder.Decode(&root); err != nil {
-		result.Preview = redactor.redact(string(data[:min(len(data), 4096)]), 0)
+		if preview {
+			result.Preview = redactor.redact(string(data[:min(len(data), 4096)]), 0)
+		}
 		return result, nil
 	}
 	if err = decoder.Decode(new(any)); err != io.EOF {
 		return result, fmt.Errorf("response contains trailing JSON data")
 	}
-	result.Preview = redactor.redact(root, 0)
-	result.Paths = PathSuggestions(root)
+	if preview {
+		result.Preview = redactor.redact(root, 0)
+		result.Paths = PathSuggestions(root)
+	}
 	if len(paths) > 0 {
 		for name, parts := range paths {
 			value, found, err := extractParts(root, parts)

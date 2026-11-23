@@ -1,47 +1,45 @@
 # Node.js plugin SDK
 
-Write Stream Dock Manager plugins in JavaScript or TypeScript. The SDK provides ESM modules and TypeScript declarations for **Node.js LTS**.
+Write a JavaScript or TypeScript ESM plugin. Package it once and select a supported
+Node.js LTS runtime in Manager.
 
-[SDK overview](../README.md) · [Starter plugins](../examples/README.md) · [License](../LICENSE)
+[Build Counter](../examples/sdk-example-nodejs/README.md#1-build-the-plugin) ·
+[Install the SDK](#build-and-install-a-local-sdk-package) · [Run a plugin](#package-and-run) ·
+[SDK checks](#check-sdk-changes)
+
+> **VSD Craft:** Its bundled Node.js does not meet this SDK's runtime requirements.
+> A working inspector does not mean the backend registered. See
+> [host compatibility](../README.md#host-compatibility-at-a-glance).
 
 ## Requirements
 
-| Item                 | What you need                                                           |
-| -------------------- | ----------------------------------------------------------------------- |
-| Developer runtime    | Node.js 26 and npm for the repository's CI-matched authoring toolchain  |
-| Package engine range | `>=22 <27`; use a currently supported LTS release for installed plugins |
-| Packaging tools      | Python 3.11+                                                            |
-| Package              | `stream-dock-manager-plugin-sdk`, version `0.1.0`                       |
-| Plugin runtime       | A supported Node.js LTS selected or installed in Manager                |
-
-Install [Node.js](https://nodejs.org/en/download) and [Python](https://www.python.org/downloads/), then check `node --version`, `npm --version`, and `python3 --version`. See [shared setup notes](../README.md#install-build-tools) for Windows command names.
-
-For a complete first plugin, follow the [Node.js Counter build guide](../examples/sdk-example-nodejs/README.md). The steps below explain using the SDK in a project of your own.
+| Item        | Value                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------- |
+| Authoring   | [Node.js 26 and npm](https://nodejs.org/en/download), [Python 3.11+](https://www.python.org/downloads/) |
+| SDK package | `stream-dock-manager-plugin-sdk` 0.1.1, ESM with TypeScript declarations                                |
+| Runtime     | Package engines `>=22 <27`; Manager requires a supported Node.js LTS                                    |
 
 ## Build and install a local SDK package
 
-Build the SDK from the public source repository. Use Node.js 26 for this repository's authoring toolchain:
+[Clone the SDK](../README.md#get-the-source). From the SDK root:
 
 ```sh
-git clone https://github.com/StreamDockManager/Plugin-SDK.git
-cd Plugin-SDK/Node
-```
-
-If you already have the checkout, open its `Node/` directory instead. Then run:
-
-```sh
+cd Node
 npm ci
 npm run build
 npm pack
 ```
 
-This creates `Node/stream-dock-manager-plugin-sdk-0.1.0.tgz`. In your plugin project, install that local package:
+From your own plugin directory, install the printed tarball:
 
 ```sh
-npm install --save-exact /absolute/path/to/stream-dock-manager-plugin-sdk-0.1.0.tgz
+npm install --save-exact /absolute/path/to/Plugin-SDK/Node/stream-dock-manager-plugin-sdk-0.1.1.tgz
 ```
 
-The Node.js SDK is not deployed to an npm registry. `npm pack` only creates a local tarball for installation, testing, or file-based distribution; it does not publish anything. Dependency installation still uses npm for third-party packages. For a complete plugin project, use the [generator](../README.md#create-a-plugin) or [Node.js Counter](../examples/sdk-example-nodejs/README.md).
+The SDK is not deployed to an npm registry. `npm pack` creates a local tarball; it does
+not publish. First-time third-party dependency installation can use the npm registry.
+To run the maintained sample instead, follow the [Counter guide](../examples/sdk-example-nodejs/README.md).
+For your own plugin ID, use the [project generator](../README.md#create-a-plugin).
 
 ## Start a plugin
 
@@ -81,8 +79,13 @@ Install the ZIP in Manager, select a supported Node.js LTS release in **Settings
 | `/workers`, `/process`      | Background workers and subprocess helpers         |
 | `/httpclient`, `/network`   | Service requests and optional network diagnostics |
 | `/inspectors`, `/testkit`   | Settings UI and tests                             |
+| `/vault-values`             | Permission-scoped Vault values and display text   |
 
-Importing the SDK does not launch a plugin or start background work. Optional modules can be tree shaken out of the final plugin; the package declares its browser inspector assets as side effects so bundlers retain them when needed. The entire `Node/` directory is the SDK; there is no additional runtime wrapper.
+Importing the SDK does not launch a plugin or start background work. Optional modules
+can be omitted from the final bundle. For example, import `formatText` only if you use
+[Vault display text](../REFERENCE.md#format-vault-references-in-display-text). The package
+marks browser inspector assets as side effects so bundlers retain them when needed.
+There is no separate Node.js runtime wrapper.
 
 ## Reusable helpers
 
@@ -90,7 +93,7 @@ Import `/managedstate`, `/requests`, `/connectedws`, or `/thumbnail`. The last t
 
 ```sh
 # Only for /connectedws:
-npm install --save-exact ws@8.22.2
+npm install --save-exact ws@8.23.0
 # TypeScript projects using service WebSockets:
 npm install --save-dev --save-exact @types/ws@8.18.2
 # Only for /thumbnail:
@@ -105,7 +108,7 @@ const image = decode(encodedBytes, 72, 72);
 
 Run synchronous decoding inside a declared `/workers` worker so it cannot stall plugin events. Packaging bundles the worker, codec dependencies, and their notices. `Plugin.observe` is for asynchronous display-only follow-up work; it does not move synchronous CPU work off the event loop.
 
-See the [shared behavior and limits](../README.md#reusable-plugin-helpers) for persistence, discovery, cancellation, and rendering semantics.
+See the [shared behavior and limits](../REFERENCE.md#reusable-plugin-helpers) for persistence, discovery, cancellation, and rendering semantics.
 
 ## Caches, discovery, and operation history
 
@@ -160,6 +163,10 @@ unestablished connections, owner-alive errors, queued output, buffered bytes,
 active callbacks, and pending settings/RPC operations retain their failure
 behavior. Pending writes are never reported as committed by this rule, and
 handler cleanup failures remain errors.
+
+## Worker input ownership
+
+`new WorkerPool({ maxBufferBytes, maxQueuedBufferBytes })` optionally limits the backing bytes of ordinary ArrayBuffers and their views in a job and across waiting jobs. Multiple views of the same buffer count once. The default pool accepts up to 32 waiting jobs and runs up to four workers concurrently. Submitting a job normally snapshots its input. To hand ownership to the pool, pass the buffers as the fourth argument to `submit(url, input, signal, transfer)`. A successful transfer detaches those buffers from the caller. A budget rejection leaves them attached.
 
 ## License
 

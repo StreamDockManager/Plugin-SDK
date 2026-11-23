@@ -18,9 +18,15 @@
                 "desktop-input-v1",
                 "action-results-v1",
                 "network-payload-v1",
+                "network-demand-v1",
                 "plugin-logs-v1"
             ]
         }
+    },
+    "network_demand": {
+        "capability": "network-demand-v1",
+        "request": { "event": "requestNetworkPayload" },
+        "response": "networkPayload"
     },
     "legacy": {
         "application": {
@@ -29,6 +35,27 @@
         },
         "plugin": {
             "uuid": "org.fixture"
+        }
+    },
+    "opendeck": {
+        "application": { "platform": "mac", "version": "7.1.0" },
+        "plugin": { "uuid": "org.fixture.sdPlugin", "version": "1.0.0" },
+        "devices": [],
+        "devicePixelRatio": 0
+    },
+    "registration_descriptor": {
+        "version": 1,
+        "id": "org.fixture",
+        "plugin_version": "1.0.0",
+        "theme_protocol": 1,
+        "settings_protocol": 1,
+        "input_protocol": 0,
+        "icon": { "light": "icon.svg", "dark": "icon.svg" },
+        "actions": {
+            "org.fixture.counter": {
+                "icon": { "light": "icon.svg", "dark": "icon.svg" },
+                "states": []
+            }
         }
     },
     "events": [

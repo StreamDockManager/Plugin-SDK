@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from stream_dock_manager_sdk import connectors, credentials, buildcache, process
 from stream_dock_manager_sdk.testkit import Recorder
 
-FIXTURE = json.loads((Path(__file__).parents[2] / 'contracts/fixtures/services-v1.json').read_text())
+FIXTURE = json.loads((Path(__file__).parents[2] / 'contracts/fixtures/services-v1.json').read_text(encoding='utf-8'))
 
 
 # Prepare service peer in the services fixture

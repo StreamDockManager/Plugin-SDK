@@ -1,0 +1,99 @@
+{
+    "version": 1,
+    "request_event": "streamDockManagerRpcRequest",
+    "response_event": "streamDockManagerRpcResponse",
+    "selector": {
+        "slot": "username",
+        "field": "username",
+        "action": "org.example.points"
+    },
+    "rules": {
+        "slot_bytes": 128,
+        "field_bytes": 128,
+        "action_bytes": 256,
+        "text_bytes": 65536,
+        "identifier": "[A-Za-z0-9_.-]+",
+        "revision": "canonical decimal u64",
+        "authority": "host-resolved exact reviewed installed action and local entry, never caller identity"
+    },
+    "methods": [
+        {
+            "protocol_id": "plugin-vault-values-v1",
+            "method": "read-value",
+            "entry_kinds": ["text"]
+        },
+        {
+            "protocol_id": "plugin-vault-secret-sharing-v1",
+            "method": "read-secret",
+            "entry_kinds": ["api-key", "bearer-token", "credential"]
+        }
+    ],
+    "result": {
+        "entry_kind": "text",
+        "value": "synthetic-fixture",
+        "revision": "3"
+    },
+    "error": {
+        "code": "vault_locked",
+        "message": "Vault request failed"
+    },
+    "permissions": {
+        "version": 1,
+        "actions": {
+            "org.example.points": {
+                "purpose": "Read the selected account credential.",
+                "optional": [
+                    {
+                        "id": "vault.read-secret",
+                        "field": "api_key",
+                        "entry_kind": "api-key",
+                        "purpose": "Authenticate the points request."
+                    }
+                ]
+            }
+        }
+    },
+    "location": {
+        "method": "read-location",
+        "protocol_id": "plugin-vault-values-v1",
+        "selector": {
+            "action": "org.example.points",
+            "slot": "place",
+            "field": "place"
+        },
+        "result": {
+            "entry_kind": "location",
+            "revision": "3",
+            "value": {
+                "latitude": 12.34567,
+                "longitude": 0
+            }
+        },
+        "invalid_coordinates": [
+            {
+                "latitude": 91,
+                "longitude": 0
+            },
+            {
+                "latitude": 0,
+                "longitude": -181
+            },
+            {
+                "latitude": false,
+                "longitude": 0
+            },
+            {
+                "longitude": 0
+            },
+            {
+                "latitude": 0,
+                "longitude": "0"
+            },
+            {
+                "latitude": 0,
+                "longitude": 0,
+                "name": "extra"
+            }
+        ]
+    }
+}

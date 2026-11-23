@@ -527,7 +527,7 @@ struct PreparedRequest {
 
 #[cfg(feature = "http")]
 // Validate request inputs before acquiring transport resources
-fn prepare_request(settings: &Value, options: &Options) -> Result<PreparedRequest> {
+fn prepare_request(settings: &Value, options: &Options, preview: bool) -> Result<PreparedRequest> {
     let method = settings["method"].as_str().unwrap_or("GET").to_uppercase();
     if !["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"].contains(&method.as_str()) {
         return Err(error("unsupported HTTP method"));
@@ -658,6 +658,7 @@ fn prepare_request(settings: &Value, options: &Options) -> Result<PreparedReques
         fields,
         settings["field"],
         options.status_only,
+        preview,
         options.no_redirect,
         options.allow_user_info,
         secrets
@@ -805,6 +806,7 @@ fn extract_result(
     method: &str,
     fields: BTreeMap<String, String>,
     secrets: &[String],
+    preview: bool,
 ) -> Result<()> {
     if method != "HEAD" && !data.is_empty() {
         let mut decoder = serde_json::Deserializer::from_slice(data).into_iter::<Value>();
@@ -815,8 +817,10 @@ fn extract_result(
             {
                 return Err(error("response contains trailing JSON data"));
             }
-            result.preview = redact(&root, secrets);
-            result.paths = path_suggestions(&root);
+            if preview {
+                result.preview = redact(&root, secrets);
+                result.paths = path_suggestions(&root);
+            }
             for (name, path) in fields {
                 if let Some(value) = extract_path(&root, &path)? {
                     result.fields.insert(name, redact(&value, secrets));
@@ -824,7 +828,7 @@ fn extract_result(
                     result.missing.push(name)
                 }
             }
-        } else {
+        } else if preview {
             result.preview = redact(
                 &json!(String::from_utf8_lossy(&data[..data.len().min(4096)])),
                 secrets,
@@ -878,6 +882,31 @@ pub fn request(
     cancel: Arc<AtomicBool>,
     network: Option<crate::NetworkPayload>,
 ) -> Result<HTTPResult> {
+    request_with_preview(settings, options, cancel, network, true)
+}
+
+#[cfg(feature = "http")]
+/// Extract configured fields without constructing inspector previews or paths.
+pub fn request_for_display(
+    settings: &Value,
+    options: &Options,
+    cancel: Arc<AtomicBool>,
+    network: Option<crate::NetworkPayload>,
+) -> Result<HTTPResult> {
+    request_with_preview(settings, options, cancel, network, false)
+}
+
+#[cfg(not(feature = "http"))]
+pub use request as request_for_display;
+
+#[cfg(feature = "http")]
+fn request_with_preview(
+    settings: &Value,
+    options: &Options,
+    cancel: Arc<AtomicBool>,
+    network: Option<crate::NetworkPayload>,
+    preview: bool,
+) -> Result<HTTPResult> {
     let started = Instant::now();
     if cancel.load(Ordering::Acquire) {
         return Err(error("request cancelled or timed out"));
@@ -892,7 +921,7 @@ pub fn request(
         secrets,
         conditional,
         identity,
-    } = prepare_request(settings, options)?;
+    } = prepare_request(settings, options, preview)?;
     let mut ticket = if options.automatic && method == "GET" && !conditional {
         options
             .cache
@@ -1011,7 +1040,7 @@ pub fn request(
     }
     if !options.status_only {
         let data = read_response(&mut response, &trace, &context)?;
-        extract_result(&mut result, &data, &method, fields, &secrets)?;
+        extract_result(&mut result, &data, &method, fields, &secrets, preview)?;
     }
     crate::diagnostics::http_finish(&trace, result.status);
     result.duration_ms = started.elapsed().as_millis() as u64;
@@ -1146,25 +1175,29 @@ mod preparation_tests {
     fn preparation_preserves_validation_order_and_credential_identity() {
         let options = Options::default();
         let bad = json!({"method":"INVALID", "url":"bad", "timeout":-1});
-        assert!(prepare_request(&bad, &options)
+        assert!(prepare_request(&bad, &options, true)
             .err()
             .unwrap()
             .to_string()
             .contains("method"));
         let base = json!({"url":"https://example.test/data", "headers":{"Authorization":"Bearer private"}, "fields":{"v":"value"}});
-        let first = prepare_request(&base, &options).unwrap();
+        let first = prepare_request(&base, &options, true).unwrap();
         assert!(first.secrets.iter().any(|v| v == "private"));
         let mut changed = base.clone();
         changed["headers"]["Authorization"] = json!("Bearer other");
         assert_ne!(
             first.identity,
-            prepare_request(&changed, &options).unwrap().identity
+            prepare_request(&changed, &options, true).unwrap().identity
         );
         let mut conditional = base;
         conditional["headers"]["If-None-Match"] = json!("\"v1\"");
-        assert!(prepare_request(&conditional, &options).unwrap().conditional);
+        assert!(
+            prepare_request(&conditional, &options, true)
+                .unwrap()
+                .conditional
+        );
         let invalid = json!({"url":"https://example.test/", "timeout":121});
-        assert!(prepare_request(&invalid, &options)
+        assert!(prepare_request(&invalid, &options, true)
             .err()
             .unwrap()
             .to_string()
@@ -1184,11 +1217,24 @@ mod preparation_tests {
             "GET",
             fields,
             &["private".into()],
+            true,
         )
         .unwrap();
         assert!(!result.preview.to_string().contains("private"));
+        let mut display = HTTPResult::default();
+        extract_result(
+            &mut display,
+            br#"{"value":"hello"}"#,
+            "GET",
+            BTreeMap::from([("selected".into(), "value".into())]),
+            &[],
+            false,
+        )
+        .unwrap();
+        assert_eq!(display.fields["selected"], "hello");
+        assert!(display.preview.is_null() && display.paths.is_empty());
         assert_eq!(result.missing, vec!["missing"]);
-        assert!(extract_result(&mut result, b"{} {}", "GET", BTreeMap::new(), &[]).is_err());
-        assert!(extract_result(&mut result, b"{} {}", "HEAD", BTreeMap::new(), &[]).is_ok());
+        assert!(extract_result(&mut result, b"{} {}", "GET", BTreeMap::new(), &[], true).is_err());
+        assert!(extract_result(&mut result, b"{} {}", "HEAD", BTreeMap::new(), &[], true).is_ok());
     }
 }

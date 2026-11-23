@@ -86,10 +86,17 @@ func (c *wireConn) SetReadLimit(limit int64) { c.conn.SetReadLimit(limit) }
 
 // Serialize and send a JSON WebSocket message
 func (c *wireConn) WriteJSON(value any) error {
+	if e, ok := value.(Event); ok && e.wire != nil {
+		return c.writeEncoded(e.wire)
+	}
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
+	return c.writeEncoded(data)
+}
+
+func (c *wireConn) writeEncoded(data []byte) error {
 	if len(data) > MaxMessageBytes {
 		return errors.New("SDK message exceeds 1048576-byte UTF-8 JSON limit")
 	}

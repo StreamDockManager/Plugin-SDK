@@ -1,0 +1,95 @@
+{
+    "version": 1,
+    "permissions": "plugin-permissions-v1",
+    "webhook": {
+        "origin": "http://127.0.0.1:39480",
+        "certificate": "fixture-cert"
+    },
+    "notifications": "plugin-notifications-v1",
+    "notification_scope": { "id": "notifications.create", "mode": "plugin-message" },
+    "notification": {
+        "action": "fixture.press",
+        "level": "warning",
+        "message": "Fixture notice ☁"
+    },
+    "notification_receipt": { "state": "created" },
+    "broker": "plugin-http-broker-v1",
+    "activation_token": "d9ca19e9-8453-4a2c-99f1-58d445bbbebf",
+    "scope": {
+        "id": "ui.popup",
+        "mode": "text-result"
+    },
+    "action": "fixture.press",
+    "revision": "7",
+    "review_id": "da5c9526-9047-440f-9126-6a12462dea61",
+    "result_handle": "66eadeed-b65b-458c-9563-c65252801e9f",
+    "terminal_event": {
+        "event": "streamDockManagerPermissionRequestResult",
+        "request_id": "12345678-1234-4234-8234-123456789abc",
+        "review_id": "da5c9526-9047-440f-9126-6a12462dea61",
+        "outcome": "approved",
+        "revision": "7"
+    },
+    "changed_event": {
+        "event": "streamDockManagerPermissionsChanged",
+        "revision": "7",
+        "action": "fixture.press",
+        "scopes": [
+            {
+                "id": "ui.popup",
+                "mode": "text-result"
+            }
+        ]
+    },
+    "text": "Résumé Δ",
+    "writes": "plugin-vault-writes-v1",
+    "write": {
+        "operation": "rotate",
+        "slot": "provider-token",
+        "field": "credential",
+        "action": "fixture.press",
+        "entry_kind": "api-key",
+        "value": "synthetic-fixture-only",
+        "expected_revision": "3"
+    },
+    "receipt": {
+        "entry_ref": "da5c9526-9047-440f-9126-6a12462dea61.66eadeed-b65b-458c-9563-c65252801e9f",
+        "revision": "4"
+    },
+    "references": "plugin-vault-references-v1",
+    "use": {
+        "id": "vault.access",
+        "mode": "use-entry",
+        "recipe": "clipboard-summary",
+        "operation": "authorize-request",
+        "origin": "https://api.example.test",
+        "field": "authorization"
+    },
+    "browse": {
+        "id": "vault.access",
+        "mode": "browse-metadata",
+        "recipe": "clipboard-summary",
+        "operation": "authorize-request",
+        "origin": "https://api.example.test",
+        "field": "authorization"
+    },
+    "page": {
+        "entries": [
+            {
+                "id": "da5c9526-9047-440f-9126-6a12462dea61.66eadeed-b65b-458c-9563-c65252801e9f",
+                "name": "Test place"
+            }
+        ],
+        "next": null
+    },
+    "selection_event": {
+        "event": "streamDockManagerVaultSelectionResult",
+        "request_id": "12345678-1234-4234-8234-123456789abc",
+        "review_id": "da5c9526-9047-440f-9126-6a12462dea61",
+        "outcome": "selected",
+        "entry": {
+            "id": "da5c9526-9047-440f-9126-6a12462dea61.66eadeed-b65b-458c-9563-c65252801e9f",
+            "name": "Test place"
+        }
+    }
+}

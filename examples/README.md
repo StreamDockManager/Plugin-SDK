@@ -1,78 +1,68 @@
 # Starter plugins
 
-Try a working Counter plugin, then adapt it into your own project. Every starter shows a count, increments once on button release, saves per-binding settings, and includes a local settings panel.
+Start with a working Counter. It increments once on button release, has a local settings
+panel, and keeps a separate count for each binding.
 
-**Four starters · Version 0.1.0 · Development packages · MIT**
+**Version 0.1.1 · Development packages · MIT**
 
-Start with one language below. Build its ZIP, install it in Manager, and confirm the Counter works before changing its identity or behavior.
-
-[Choose a starter](#pick-a-starter) · [Build and install](#build-and-install) · [Create a project](#create-your-own-project) · [Validate](#validate-behavior) · [Unified bundles](#optional-unified-plugin-bundles)
+[Pick a starter](#pick-a-starter) · [Build and install](#build-and-install) ·
+[Generator](#create-your-own-project) · [Validate](#validate-behavior) ·
+[Unified bundles](#optional-unified-plugin-bundles)
 
 ## Pick a starter
 
-| Starter                                 | Build tools                                            | User runtime                              |
-| --------------------------------------- | ------------------------------------------------------ | ----------------------------------------- |
-| [Go](sdk-example-go/README.md)          | Go 1.27.4+, Python 3.11+                               | Native executable                         |
-| [Rust](sdk-example-rust/README.md)      | Rust 1.89+, Cargo, Python 3.11+                        | Native executable                         |
-| [Python](sdk-example-python/README.md)  | Python 3.11+, venv, pinned PyInstaller dependencies    | Included Python interpreter               |
-| [Node.js](sdk-example-nodejs/README.md) | Node.js 26 for repository authoring, npm, Python 3.11+ | Supported Node.js LTS selected in Manager |
+[Clone the SDK](../README.md#get-the-source), install [your language's build tools](../README.md#install-build-tools),
+and follow the setup in the corresponding starter guide. You only need one toolchain.
 
-Need the tools? Start with the [installation links and platform notes](../README.md#install-build-tools). You do not need all four toolchains to build one starter.
-
-Follow the language-specific instructions first. The Go, Rust, Python, and Node starters depend on the standalone SDK; provision its pinned version or an explicit local development override before packaging.
-
-| Language | SDK setup before packaging                                                                                     |
-| -------- | -------------------------------------------------------------------------------------------------------------- |
-| Go       | Download the revision and checksums pinned in `go.mod` and `go.sum`.                                           |
-| Rust     | Use the exact crate dependency; before publication, supply the documented local Cargo patch configuration.     |
-| Python   | Activate a virtual environment, install the local SDK, then install the starter's pinned requirements.         |
-| Node.js  | Build `Node/` and set `STREAM_DOCK_MANAGER_SDK_JS_ROOT` to that absolute directory for the maintained starter. |
+| Starter                                         | SDK setup                                                      | What the ZIP needs at runtime             |
+| ----------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------- |
+| [Go Counter](sdk-example-go/README.md)          | Download the pinned Go SDK and verify checksums                | Included native executable                |
+| [Rust Counter](sdk-example-rust/README.md)      | Use the exact crate version with the local Cargo override      | Included native executable                |
+| [Python Counter](sdk-example-python/README.md)  | In a venv, install the SDK and pinned PyInstaller requirements | Included Python interpreter               |
+| [Node.js Counter](sdk-example-nodejs/README.md) | Build `Node/` and set `STREAM_DOCK_MANAGER_SDK_JS_ROOT`        | Supported Node.js LTS selected in Manager |
 
 ## Build and install
 
-From the SDK repository root, after provisioning dependencies:
+From the SDK root, run the packager for the language you set up:
 
 ```sh
 python3 examples/tools/package.py go
 ```
 
-Replace `go` with `rust`, `python`, or `nodejs`. For Python, use the active development environment's interpreter. ZIPs are written to `examples/artifacts/`; the command prints the exact path. Each archive contains one installable `.sdPlugin` folder, its runtime files, assets, and license notices.
+Replace `go` with `rust`, `python`, or `nodejs`. For Python, use the active environment's
+interpreter. The command prints a ZIP path in `examples/artifacts/`; each ZIP contains one
+`.sdPlugin` folder, its runtime files, artwork, and license notices.
 
-1. Open **Plugins → Import plugin** in Manager and select the ZIP.
-2. Review and install it. For Node.js, choose a supported LTS runtime.
-3. Enable the plugin and bind **Counter** to a button.
-4. Save the binding, then press and release the button.
-5. Open plugin settings to change the label prefix or reset the count.
+1. In Manager, choose **Plugins → Import plugin**, then review and install the ZIP.
+2. Enable the plugin. For Node.js, choose a supported LTS runtime if prompted.
+3. Assign **Counter** to a button and **Save binding**. Press and release once to see
+   **Count 0** become **Count 1**. Use plugin settings to edit the prefix or reset the count.
 
-Each binding has its own count. Native packages are platform-specific. Build and qualify them on their target OS/architecture; a successful cross-build alone does not verify execution. VSD Craft and Elgato reference-host compatibility remain unverified.
+Native archives are OS/CPU-specific. A successful build does not qualify the plugin on another
+host. See the [host compatibility table](../README.md#host-compatibility-at-a-glance) before
+using a different app; the VSD Craft bundled runtime does not support the Node.js SDK.
 
 ## Create your own project
 
-Run from the SDK repository root:
+Use the [generator command](../README.md#create-a-plugin) with a unique plugin ID and a
+destination that does not exist. Its parent directory must exist. The generator runs offline
+and creates the source, assets, inspector, manifest, dependency declarations, and tools.
+It does not build, install, or publish the plugin.
 
-```sh
-python3 examples/tools/generate.py \
-  --destination /absolute/existing-parent/my-plugin \
-  --identity com.example.my-plugin \
-  --language nodejs \
-  --name "My plugin"
-```
-
-The destination must not exist, and its parent directory must already exist. Generation is offline and includes the source, assets, inspector, manifest, dependency declarations, and tools. It does not build, install, or publish anything. Choose one of the four language names from the table above; Node.js uses `nodejs`.
-
-In the new project, provision the language dependencies, then run:
+After following the generated README's dependency setup, run:
 
 ```sh
 python3 tools/validate.py --project .
 python3 tools/package.py --project .
 ```
 
-Use `--no-build` only when repackaging an already-built artifact. The packager prints the ZIP path. Validate a specific archive with `python3 tools/validate.py --project . --package /absolute/path/to/plugin.zip`.
+Use `--no-build` only to repackage an already-built artifact. To verify a specific ZIP,
+run `python3 tools/validate.py --project . --package /absolute/path/to/plugin.zip`.
 
-| Layout                           | Build command                          | Output directory      |
-| -------------------------------- | -------------------------------------- | --------------------- |
-| This SDK checkout, from its root | `python3 examples/tools/package.py go` | `examples/artifacts/` |
-| Generated project, from its root | `python3 tools/package.py --project .` | `artifacts/`          |
+| Layout            | Build command from its root            | Output                |
+| ----------------- | -------------------------------------- | --------------------- |
+| SDK checkout      | `python3 examples/tools/package.py go` | `examples/artifacts/` |
+| Generated project | `python3 tools/package.py --project .` | `artifacts/`          |
 
 ## Customize the display
 
@@ -125,7 +115,7 @@ For Node.js, set `STREAM_DOCK_MANAGER_NODE` to a compatible executable when sele
 
 Generated projects require both `--host` and `--scenario`. To test an unmodified generated Counter, run `python3 tools/acceptance.py --project . --host /absolute/path/to/sdk_acceptance --scenario counter` inside that project. For a customized plugin, build Manager's `sdk_protocol_probe` example and select `--scenario protocol` instead. Node.js generated projects require an explicit absolute `STREAM_DOCK_MANAGER_NODE` path.
 
-For local SDK setup and development checks, see the [SDK overview](../README.md) and the language guides linked there.
+For local SDK setup and development checks, see the [SDK overview](../README.md) and the linked language guides.
 
 ## Maintain the starter templates
 
@@ -150,14 +140,11 @@ capability, licensing, packaging and profile safety policies remain in their wra
 | OS-specific ZIP | The normal, smaller download for one operating system and CPU.                 |
 | Unified ZIP     | An optional single download with Windows, macOS, and Linux native executables. |
 
-For Manager/VSD, OS-specific archives remain the normal distribution and Manager download default. OpenDeck requires a universal archive; see the OpenDeck instructions below.
-A unified archive is an optional single-plugin download containing separate native
-runtimes for Windows, macOS, and Linux, selected by exact OS/CPU `CodePaths`. It
-requires a Manager version supporting native `CodePaths`; it is not a claim of
-compatibility with third-party hosts. This merger supports native Go, Rust, and C++ packages. Node.js and frozen Python
-packages are not supported by this merger; their existing package workflows remain
-unchanged. Native builds must still be produced and validated with each platform's toolchain.
-The merger never executes foreign binaries or cross-compiles them implicitly.
+OS-specific ZIPs remain the default for Manager/VSD packages. The native merger works
+with Go, Rust, and C++ archives. It does not combine frozen Python or Node.js packages,
+cross-compile executables, or execute foreign binaries. Manager support for exact OS/CPU
+`CodePaths` is required. For portable Node.js OpenDeck export, use the
+[separate JavaScript workflow](../REFERENCE.md#creating-opendeck--openaction-packages).
 
 Combine archives from the **same source revision and version** after validating
 each target package. Run this command from `examples/`:
@@ -170,26 +157,22 @@ python3 tools/unified.py \
   --output /path/plugin-unified.zip
 ```
 
-For OpenDeck, universal output is mandatory. Add `--host opendeck` to both
-merging and validation commands. Native inputs are normal Manager-format target
-archives; `package.py --host opendeck --input OS/ARCH=ZIP ...` is also available.
-A single native project cannot produce a system-specific OpenDeck release.
-This exports OpenAction image references, accepts its `CodePathLin` override, and
-records the selected host in the archive inventory. Use a separate output filename
-such as `plugin-opendeck-unified.zip`. Modern OpenDeck uses exact `CodePaths`. Legacy `CodePathWin`, `CodePathMac`
-and `CodePathLin` entries select x86_64 when included, otherwise ARM64. Older hosts
-without `CodePaths` support can run only that selected fallback architecture;
-they cannot automatically select another CPU build.
-This remains native Go/Rust/C++ packaging, not Node.js or frozen Python qualification.
+For OpenDeck native plugins, pass `--host opendeck` both when merging and validating.
+All three operating systems are required. The inputs are regular Manager-format target
+archives. `package.py --host opendeck --input OS/ARCH=ZIP ...` also accepts those inputs.
+Do not distribute a single-target native archive as an OpenDeck release.
 
-Repeat `--input` for additional supported architectures. All three operating
-systems are required. Inputs must agree on identity, actions, capabilities,
-version, and shared assets. Executable headers must match the declared targets.
-Runtime files retain their relative layout under `bin/<os>-<arch>/`; licenses
-and dependency reports are retained under `target-audits/<os>-<arch>/`. Inputs
-are not modified. Output is deterministic, bounded, and replaced atomically.
-Node.js starter packages already carry portable JavaScript; this native merger
-does not combine them. Unsupported platforms must not be advertised as supported.
+| Routing or verification  | Behavior                                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Modern host              | Exact OS/CPU entries in `CodePaths`                                                                                                      |
+| Legacy OS fields         | `CodePathWin`, `CodePathMac`, and `CodePathLin` use x86_64 if included, otherwise ARM64; legacy hosts cannot switch to another CPU build |
+| Additional architectures | Repeat `--input`; every executable header must match the declared target                                                                 |
+| Integrity                | Identity, actions, capabilities, version, and shared assets must match; inputs remain unchanged                                          |
+| Archive layout           | Runtime files under `bin/<os>-<arch>/`; dependency notices and checks under `target-audits/<os>-<arch>/`                                 |
+
+OpenDeck mode writes OpenAction image references and records the host in its inventory.
+Use a separate output name such as `plugin-opendeck-unified.zip`. Output is deterministic,
+bounded, and replaced atomically. Package validation does not establish native execution.
 
 Validate unified output with `python3 tools/unified.py --validate /path/plugin-unified.zip`.
 The merger runs this check automatically before replacing output. The existing

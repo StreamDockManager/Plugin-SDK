@@ -24,7 +24,7 @@ for kind in STARTER_KINDS:
         ids.add(identity)
     for name in ['README.md', 'icon.png', 'inspector.html', 'inspector.js']:
         assert (directory / name).is_file(), f'missing {kind}/{name}'
-    assert manifest['Version'] == '0.1.0'
+    assert manifest['Version'] == '0.1.1'
     assert manifest['SDKVersion'] == 1
     assert manifest['StreamDockManager']['ManifestDialect'] == 'vsd'
     assert [state['Title'] for state in manifest['Actions'][0]['States']] == ['Even', 'Odd']

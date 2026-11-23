@@ -109,6 +109,7 @@ pub struct PollResult {
 pub struct Resources {
     bindings: BTreeMap<String, (String, u64)>,
     delivered: BTreeMap<String, PollState>,
+    samples: BTreeMap<String, std::sync::Arc<Value>>,
     pub states: BTreeMap<String, PollState>,
     pending: BTreeMap<String, u64>,
     cooldowns: BTreeMap<String, u64>,
@@ -150,6 +151,7 @@ impl Resources {
     // Remove a consumer from shared observations
     pub fn unwatch(&mut self, context: &str) {
         self.delivered.remove(context);
+        self.samples.remove(context);
         if let Some((prior, _)) = self.bindings.remove(context) {
             if !self.bindings.values().any(|(key, _)| key == &prior) {
                 self.states.remove(&prior);
@@ -204,14 +206,18 @@ impl Resources {
         } else {
             self.cooldowns.remove(key);
         }
+        let shared = (!result.failed).then(|| std::sync::Arc::new(result.value.clone()));
         let forced = self.states[key].next == 0;
         for (id, (resource, interval)) in &self.bindings {
             let state = self.delivered.get_mut(id).unwrap();
             if resource != key || (!forced && result.now < state.next) {
                 continue;
             }
+            if let Some(value) = &shared {
+                self.samples.insert(id.clone(), value.clone());
+            }
             state.complete(
-                result.value.clone(),
+                Value::Null,
                 result.failed,
                 result.now,
                 *interval,
@@ -235,7 +241,11 @@ impl Resources {
     }
     // Copy the current observable state for poll scheduling
     pub fn snapshot(&self, context: &str) -> Option<PollState> {
-        self.delivered.get(context).cloned()
+        let mut state = self.delivered.get(context)?.clone();
+        if let Some(value) = self.samples.get(context) {
+            state.last_value = (**value).clone();
+        }
+        Some(state)
     }
     // Compute the next eligible polling deadline
     fn schedule(&mut self, key: &str) {

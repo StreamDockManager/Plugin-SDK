@@ -58,12 +58,12 @@ def main():
         cache.mkdir(exist_ok=True)
         if language=='go':
             work=cache/'probe.work'
-            work.write_text('go 1.27.4\nuse (\n'+json.dumps(str(ROOT/'Go'))+'\n'+json.dumps(str(project))+'\n)\nreplace github.com/StreamDockManager/Plugin-SDK/Go v0.1.0 => '+json.dumps(str(ROOT/'Go'))+'\n')
+            work.write_text('go 1.27.4\nuse (\n'+json.dumps(str(ROOT/'Go'))+'\n'+json.dumps(str(project))+'\n)\nreplace github.com/StreamDockManager/Plugin-SDK/Go v0.1.1 => '+json.dumps(str(ROOT/'Go'))+'\n')
             os.environ['GOWORK']=str(work)
             os.environ.setdefault('GOCACHE',str(cache/'go-build'))
         if language=='rust':
             cargo=project/'Cargo.toml'
-            cargo.write_text(cargo.read_text().replace('stream-dock-manager-plugin-sdk = "=0.1.0"', 'stream-dock-manager-plugin-sdk = { version = "=0.1.0", features = ["http"] }'))
+            cargo.write_text(cargo.read_text().replace('stream-dock-manager-plugin-sdk = "=0.1.1"', 'stream-dock-manager-plugin-sdk = { version = "=0.1.1", features = ["http"] }'))
             config=cache/'probe-cargo.toml'
             config.write_text('[patch.crates-io]\nstream-dock-manager-plugin-sdk = { path = '+json.dumps(str(ROOT/'Rust'))+' }\n')
             os.environ['STREAM_DOCK_MANAGER_SDK_CARGO_CONFIG']=str(config)

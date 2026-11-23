@@ -80,8 +80,20 @@ export class ProbePool {
 }
 export const MAX_OUTPUT_BYTES = 8 * MAX_MESSAGE;
 export const MAX_LOG_BYTES = MAX_MESSAGE;
+function networkDemand(client: Client): boolean {
+    const run = client.host.raw.streamDockManager?.run_id;
+    return (
+        client.supports('plugin-protocol-v1') &&
+        client.supports('network-demand-v1') &&
+        client.supports('network-payload-v1') &&
+        typeof run === 'string' &&
+        run.length > 0 &&
+        byteLength(run) <= 128
+    );
+}
+const drainWire = Symbol('drainWire');
 interface Queued {
-    message: Event;
+    encoded: string;
     bytes: number;
 }
 export class Client {
@@ -183,14 +195,17 @@ export class Client {
                 throw Error('Invalid desktop request');
             this.#inputs.set(id, { context, receipt: this.deferAction() });
         }
-        output.push({ message: JSON.parse(encoded), bytes });
+        output.push({ encoded, bytes });
         if (event === 'logMessage') this.#logBytes += bytes;
         else this.#outputBytes += bytes;
         this.outputReady();
     }
     // Drain queued output within the supplied byte budget
     drain(maxBytes = Infinity): Event[] {
-        const values: Event[] = [];
+        return this[drainWire](maxBytes).map((frame) => JSON.parse(frame));
+    }
+    [drainWire](maxBytes: number): string[] {
+        const values: string[] = [];
         // Take the next queued output frame
         const take = (queue: Queued[], logs: boolean) => {
             while (queue.length && queue[0].bytes <= maxBytes) {
@@ -198,7 +213,7 @@ export class Client {
                 maxBytes -= value.bytes;
                 if (logs) this.#logBytes -= value.bytes;
                 else this.#outputBytes -= value.bytes;
-                values.push(value.message);
+                values.push(value.encoded);
             }
         };
         take(this.#output, false);
@@ -212,10 +227,11 @@ export class Client {
                     ...(this.supports('plugin-logs-v1') ? { stream: 'stderr' } : {}),
                 },
             };
-            const bytes = byteLength(JSON.stringify(message));
+            const encoded = JSON.stringify(message);
+            const bytes = byteLength(encoded);
             if (bytes > maxBytes) return values;
             maxBytes -= bytes;
-            values.push(message);
+            values.push(encoded);
             this.#droppedLogs = 0;
         }
         take(this.#logs, true);
@@ -244,6 +260,14 @@ export class Client {
     // Request the current action settings
     getSettings(id: string): void {
         this.send('getSettings', id);
+    }
+    /**
+     * Send VSD Craft's backend settings request using the registration UUID.
+     * VSD Craft documents an asynchronous didReceiveSettings event.
+     */
+    requestVsdCraftSettings(): void {
+        if (!this.identity.trim()) throw Error('VSD Craft settings require a registration UUID');
+        this.send('getSettings', this.identity);
     }
     // Save plugin-wide settings through the host
     globalSettings(value: Settings): void {
@@ -274,6 +298,13 @@ export class Client {
     ok(id: string): void {
         this.send('showOk', id, {});
     }
+    #jobRedactors = new Map<AbortController, (text: string) => string>();
+    #safeLog(text: string): string {
+        const current = this.logRedactor;
+        for (const sanitize of new Set(this.#jobRedactors.values()))
+            if (sanitize !== current) text = sanitize(text);
+        return current(text);
+    }
     logRedactor: (message: string) => string = (message) => message;
     // Emit a redacted plugin log message
     log(message: string): void {
@@ -282,7 +313,7 @@ export class Client {
     // Create a context-aware log stream
     logStream(stream: 'stdout' | 'stderr', message: string): void {
         if (stream !== 'stdout' && stream !== 'stderr') throw Error('Invalid log stream');
-        const raw = new TextEncoder().encode(this.logRedactor(message));
+        const raw = new TextEncoder().encode(this.#safeLog(message));
         const typed = this.host.supports('plugin-logs-v1');
         const decoder = new TextDecoder();
         for (let start = 0; start < raw.length;) {
@@ -314,7 +345,7 @@ export class Client {
                     });
                 } catch {}
             },
-            (text) => this.logRedactor(text),
+            (text) => this.#safeLog(text),
         );
     }
     // Expose the safe stdout log writer
@@ -407,7 +438,9 @@ export class Client {
             },
             { once: true },
         );
+        const sanitize = this.logRedactor;
         const accepted = this.#pool.submit(cancel.signal, async () => {
+            this.#jobRedactors.set(cancel, sanitize);
             await Promise.resolve()
                 .then(() => work(cancel.signal))
                 .then(
@@ -415,12 +448,14 @@ export class Client {
                     (value) => {
                         if (cancel.signal.aborted) return;
                         this.#applies.push(async () => {
+                            this.#jobRedactors.set(cancel, sanitize);
                             try {
                                 if (!cancel.signal.aborted) await apply(value);
                                 receipt.finish();
                             } catch (error) {
                                 receipt.finish(error);
                             } finally {
+                                this.#jobRedactors.delete(cancel);
                                 this.#jobs.delete(cancel);
                                 this.#owners.delete(cancel);
                             }
@@ -433,7 +468,8 @@ export class Client {
                         receipt.finish(error);
                         this.wake();
                     },
-                );
+                )
+                .finally(() => this.#jobRedactors.delete(cancel));
         });
         if (!accepted) {
             cancel.abort();
@@ -456,6 +492,18 @@ export class Client {
             } catch {
                 return;
             }
+        }
+        if (event.event === 'requestNetworkPayload' && networkDemand(this)) {
+            const run = this.host.raw.streamDockManager?.run_id;
+            if (typeof run === 'string' && run.length > 0 && run.length <= 128) {
+                const { sent, received } = this.network.snapshot();
+                this.send('networkPayload', '', {
+                    run_id: run,
+                    sent_bytes: sent,
+                    received_bytes: received,
+                });
+            }
+            return;
         }
         if (event.event === 'didReceiveLogSettings' && this.supports('plugin-logs-v1')) {
             if (typeof event.payload?.debug_network === 'boolean')
@@ -780,8 +828,10 @@ class TransportSession {
         // Flush admitted output to the active transport
         const flush = () => {
             if (socket.readyState !== WebSocket.OPEN) return;
-            for (const event of client.drain(Math.max(0, MAX_OUTPUT_BYTES - socket.bufferedAmount)))
-                socket.send(JSON.stringify(event));
+            for (const frame of client[drainWire](
+                Math.max(0, MAX_OUTPUT_BYTES - socket.bufferedAmount),
+            ))
+                socket.send(frame);
             if (client.hasOutput)
                 this.state.outputTimer ??= setTimeout(() => {
                     this.state.outputTimer = undefined;
@@ -908,6 +958,7 @@ class TransportSession {
                         typeof runId === 'string' &&
                         runId.length > 0 &&
                         runId.length <= 128 &&
+                        !networkDemand(client) &&
                         client.supports('network-payload-v1')
                     )
                         this.state.networkTimer = setInterval(
@@ -931,6 +982,9 @@ class TransportSession {
                                       payload: {
                                           capabilities: descriptor ?? null,
                                           network_debug: true,
+                                          ...(networkDemand(client)
+                                              ? { network_demand: true }
+                                              : {}),
                                       },
                                   }
                                 : {}),

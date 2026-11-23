@@ -89,6 +89,7 @@ struct Request {
     resource: Option<(String, u64)>,
 }
 struct Active {
+    keep_connection: Arc<AtomicBool>,
     deadline: std::time::Instant,
     request: Request,
     generation: u64,
@@ -172,6 +173,20 @@ impl Connector {
             driver.demand(&demand.into_iter().map(|(_, s)| s).collect::<Vec<_>>());
         }
         Ok(())
+    }
+    fn cancel_binding(&mut self, id: &str) {
+        self.messages.remove(id);
+        self.queue
+            .retain(|q| q.context != id || q.resource.is_some());
+        if self
+            .active
+            .as_ref()
+            .is_some_and(|a| a.request.context == id && a.request.resource.is_none())
+        {
+            let active = self.active.take().unwrap();
+            active.keep_connection.store(true, Ordering::Release);
+            active.cancel.store(true, Ordering::Release);
+        }
     }
     // Reset retained state for the next lifecycle for connector observations
     fn reset(&mut self) {
@@ -278,6 +293,8 @@ impl Connector {
         let generation = self.sequence;
         let cancel = Arc::new(AtomicBool::new(false));
         let flag = cancel.clone();
+        let keep_connection = Arc::new(AtomicBool::new(false));
+        let keep = keep_connection.clone();
         let driver = self.driver.clone();
         let sender = self.sender.clone();
         let client = client.clone();
@@ -286,7 +303,9 @@ impl Connector {
         let op = request.op.clone();
         let ticks = request.ticks;
         let read = request.resource.is_some();
+        let lease = client.pin_redactor();
         let work = move || {
+            let _lease = lease;
             let mut driver = driver.lock().unwrap();
             let result = (|| -> Result<Value> {
                 if flag.load(Ordering::Acquire) {
@@ -326,7 +345,7 @@ impl Connector {
                     )
                 }
             };
-            if flag.load(Ordering::Acquire) {
+            if flag.load(Ordering::Acquire) && !keep.load(Ordering::Acquire) {
                 driver.close();
             }
             let _ = sender.try_send(Completed {
@@ -349,6 +368,7 @@ impl Connector {
                 self.options.command_timeout_ms
             });
         self.active = Some(Active {
+            keep_connection,
             deadline,
             request,
             generation,
@@ -448,11 +468,19 @@ impl Handler for Connector {
     // Dispatch the received event to the registered behavior for connector observations
     fn handle(&mut self, client: &Client, event: &Event) -> Result<()> {
         self.drain(client)?;
-        if matches!(
-            event.event.as_str(),
-            "didReceiveSettings" | "didReceiveGlobalSettings"
-        ) {
+        let shared = &self.options.shared_keys;
+        let global_change = event.event == "didReceiveGlobalSettings"
+            && (shared.is_empty()
+                || shared
+                    .iter()
+                    .any(|k| self.plugin.globals.get(k) != event.settings().get(k)));
+        if global_change || (event.event == "didReceiveSettings" && shared.is_empty()) {
             self.reset();
+        } else if matches!(event.event.as_str(), "didReceiveSettings" | "willDisappear") {
+            self.cancel_binding(&event.context);
+            if event.event == "willDisappear" {
+                self.resources.unwatch(&event.context);
+            }
         }
         self.plugin.handle(client, event)?;
         if event.event == "willDisappear" {
@@ -465,14 +493,7 @@ impl Handler for Connector {
         if event.event == "propertyInspectorDidDisappear"
             && !self.plugin.bindings.contains_key(&event.context)
         {
-            self.queue.retain(|q| q.context != event.context);
-            if self
-                .active
-                .as_ref()
-                .is_some_and(|a| a.request.context == event.context)
-            {
-                self.reset();
-            }
+            self.cancel_binding(&event.context);
         }
         let op = event.payload["op"].as_str().unwrap_or("");
         let inspect = event.event == "sendToPlugin"

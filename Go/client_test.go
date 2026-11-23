@@ -8,6 +8,8 @@ import (
 	"github.com/coder/websocket/wsjson"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -30,8 +32,48 @@ func (h *handler) Poll(context.Context, *Client) error { return nil }
 // Signal that the fixture handler was closed
 func (h *handler) Close() error { h.closed <- true; return nil }
 
-// Verify authenticated lifecycle and shutdown
+// Exercise the packaged descriptor on each registration path before dispatching input.
 func TestAuthenticatedLifecycleAndShutdown(t *testing.T) {
+	data, err := os.ReadFile("testdata/protocol-v1.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	var descriptor Capabilities
+	if err := json.Unmarshal(fixture["registration_descriptor"], &descriptor); err != nil {
+		t.Fatal(err)
+	}
+	prior := CompiledDescriptor
+	t.Cleanup(func() { CompiledDescriptor = prior })
+	CompiledDescriptor, err = FrameCapabilities(descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"legacy", "opendeck", "manager"} {
+		t.Run(name, func(t *testing.T) {
+			host, err := ParseHostInfo(fixture[name])
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected := map[string]any{"event": "registerPlugin", "uuid": "secret-fixture-token"}
+			if name == "manager" {
+				var capabilities map[string]any
+				if err := json.Unmarshal(fixture["registration_descriptor"], &capabilities); err != nil {
+					t.Fatal(err)
+				}
+				expected["payload"] = map[string]any{"capabilities": capabilities, "network_debug": true, "network_demand": true}
+			}
+			testAuthenticatedLifecycle(t, host, expected)
+		})
+	}
+}
+
+// Verify authenticated lifecycle and shutdown
+func testAuthenticatedLifecycle(t *testing.T, host HostInfo, expected map[string]any) {
+	t.Helper()
 	received := make(chan Event, 2)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, e := websocket.Accept(w, r, nil)
@@ -60,12 +102,13 @@ func TestAuthenticatedLifecycleAndShutdown(t *testing.T) {
 	h := &handler{make(chan Event, 4), make(chan bool, 1)}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if e := ConnectWithInfo(ctx, "ws"+strings.TrimPrefix(server.URL, "http"), "secret-fixture-token", h, HostInfo{}); e != nil {
+	if e := ConnectWithInfo(ctx, "ws"+strings.TrimPrefix(server.URL, "http"), "secret-fixture-token", h, host); e != nil {
 		t.Fatal(e)
 	}
 	reg := <-received
-	if reg.Event != "registerPlugin" || reg.UUID != "secret-fixture-token" {
-		t.Fatal(reg)
+	var registration map[string]any
+	if err := json.Unmarshal(reg.Raw, &registration); err != nil || !reflect.DeepEqual(registration, expected) {
+		t.Fatalf("registration = %v, want %v (%v)", registration, expected, err)
 	}
 	if response := <-received; response.Event != "setTitle" || response.Context != "binding" {
 		t.Fatal(response)
@@ -139,5 +182,85 @@ func TestNetworkReportsUseIndependentRunIdentifier(t *testing.T) {
 	}
 	if event.Event != "networkPayload" || payload["run_id"] != run || strings.Contains(string(event.Payload), token) {
 		t.Fatal("network report exposed authentication", event.Event)
+	}
+}
+
+// Exercise both negotiated cadences across an authenticated WebSocket.
+func TestNegotiatedNetworkReportingCadence(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		name := "periodic"
+		caps := []string{"plugin-protocol-v1", "network-payload-v1"}
+		if enabled {
+			name = "on-demand"
+			caps = append(caps, "network-demand-v1")
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+			defer cancel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				conn, err := websocket.Accept(w, r, nil)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				defer conn.CloseNow()
+				var reg Event
+				if err := wsjson.Read(ctx, conn, &reg); err != nil {
+					t.Error(err)
+					return
+				}
+				var options map[string]any
+				if err := json.Unmarshal(reg.Payload, &options); err != nil {
+					t.Error(err)
+					return
+				}
+				if (options["network_demand"] == true) != enabled {
+					t.Errorf("unexpected registration %s", reg.Payload)
+					return
+				}
+				frame := make(chan Event, 1)
+				go func() {
+					var ev Event
+					if wsjson.Read(ctx, conn, &ev) == nil {
+						frame <- ev
+					}
+				}()
+				if enabled {
+					select {
+					case first := <-frame:
+						t.Errorf("unsolicited %s", first.Event)
+						return
+					case <-time.After(1300 * time.Millisecond):
+					}
+					if err := wsjson.Write(ctx, conn, Event{Event: "requestNetworkPayload"}); err != nil {
+						t.Error(err)
+						return
+					}
+				}
+				select {
+				case ev := <-frame:
+					if ev.Event != "networkPayload" {
+						t.Errorf("unexpected frame %s", ev.Event)
+					}
+				case <-ctx.Done():
+					t.Error("missing network report")
+					return
+				}
+				_ = wsjson.Write(ctx, conn, Event{Event: "shutdown"})
+			}))
+			defer server.Close()
+			info, err := json.Marshal(map[string]any{"streamDockManager": map[string]any{"contract_version": 1, "run_id": "fixture-run", "capabilities": caps}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			host, err := ParseHostInfo(info)
+			if err != nil {
+				t.Fatal(err)
+			}
+			h := &handler{make(chan Event, 4), make(chan bool, 1)}
+			if err := ConnectWithInfo(ctx, "ws"+strings.TrimPrefix(server.URL, "http"), "fixture-token", h, host); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

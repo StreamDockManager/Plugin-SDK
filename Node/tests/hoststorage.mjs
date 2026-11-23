@@ -30,11 +30,19 @@ export async function hostStorageConformance() {
     base.getGlobalSettings();
     base.globalSettings(fixture.value);
     assert.deepEqual(base.drain(), fixture.base_requests);
+    assert.equal(base.requestVsdCraftSettings(), undefined);
+    assert.deepEqual(base.drain(), [{ event: 'getSettings', context: 'opaque-session-token' }]);
+    for (const identity of ['', '  ']) {
+        const unregistered = new Client(new HostInfo(), identity);
+        assert.throws(() => unregistered.requestVsdCraftSettings(), /registration UUID/);
+        assert.deepEqual(unregistered.drain(), []);
+    }
     assert.throws(() => new HostStore(base, 'authoring'), UnsupportedFeatureError);
     const portable = new PortableSettings(base, 'action', 'owned-context');
     base.outputReady = () => {
         const [request] = base.drain();
-        if (request.event === 'getSettings')
+        if (request.event === 'getSettings') {
+            assert.deepEqual(request, { event: 'getSettings', context: 'owned-context' });
             assert.equal(
                 base.control.observe({
                     event: 'didReceiveSettings',
@@ -43,6 +51,7 @@ export async function hostStorageConformance() {
                 }),
                 false,
             );
+        }
     };
     assert.deepEqual(await portable.read(), {
         settings: fixture.value,

@@ -8,7 +8,7 @@ from stream_dock_manager_sdk import Client, HostInfo, UnsupportedFeatureError
 from stream_dock_manager_sdk.hoststorage import (HostStore, PortableSettings, RPCError,
                                        RPC_RESPONSE, STORAGE_PROTOCOL, SETTINGS_PROTOCOL)
 
-FIXTURE = json.loads((Path(__file__).resolve().parents[2] / 'contracts/fixtures/storage-v1.json').read_text())
+FIXTURE = json.loads((Path(__file__).resolve().parents[2] / 'contracts/fixtures/storage-v1.json').read_text(encoding='utf-8'))
 
 
 class HostStorageTests(unittest.TestCase):
@@ -66,11 +66,18 @@ class HostStorageTests(unittest.TestCase):
         base.get_settings('owned-context'); base.settings('owned-context', value)
         base.get_global_settings(); base.global_settings(value)
         self.assertEqual(base.drain(), FIXTURE['base_requests'])
+        self.assertIsNone(base.request_vsd_craft_settings())
+        self.assertEqual(base.drain(), [dict(event='getSettings', context='opaque-session-token')])
+        for identity in ('', '  '):
+            unregistered = Client(identity=identity)
+            with self.assertRaisesRegex(ValueError, 'registration UUID'):
+                unregistered.request_vsd_craft_settings()
+            self.assertEqual(unregistered.drain(), [])
         with self.assertRaises(UnsupportedFeatureError): HostStore(base, 'authoring')
         # Prepare answer base in the host storage tests fixture
         def answer_base():
             request, = base.drain()
-            self.assertEqual(request['event'], 'getSettings')
+            self.assertEqual(request, dict(event='getSettings', context='owned-context'))
             self.assertFalse(base.control.observe(dict(event='didReceiveSettings', context='owned-context', payload=dict(settings=value))))
         base._flush_control = answer_base
         settings = PortableSettings(base, 'action', 'owned-context')

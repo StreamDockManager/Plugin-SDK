@@ -10,13 +10,17 @@ import re
 import subprocess
 import tempfile
 import threading
+import time
 import tomllib
 import zipfile
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = 'StreamDockManager/Plugin-SDK'
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 API_TIMEOUT_SECONDS = 120
+MAX_ARTIFACT_BYTES = 256 * 1024 * 1024
+MAX_REDIRECT_HEADERS = 64 * 1024
 PACKAGES = {
     f'stream-dock-manager-plugin-sdk-go-{VERSION}.zip',
     f'stream-dock-manager-plugin-sdk-{VERSION}.crate',
@@ -88,6 +92,95 @@ def api(path, method='GET', data=None, raw=False):
         output.seek(0)
         return output.read() if raw else json.load(output)
 
+
+
+# Keep curl configuration and signed URLs off the command line and out of errors
+def artifact_get(url, output, limit, deadline, *, response_headers=None, request_headers=()):
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise RuntimeError('GitHub Actions artifact download timed out')
+    config = [('url', url), ('output', str(output))]
+    if response_headers is not None:
+        config.append(('dump-header', str(response_headers)))
+    config.extend(('header', header) for header in request_headers)
+    # Do not inherit credentials into either curl process
+    env = {key: value for key, value in os.environ.items()
+           if key not in ('GH_TOKEN', 'GITHUB_TOKEN', 'GH_ENTERPRISE_TOKEN', 'GITHUB_ENTERPRISE_TOKEN')}
+    try:
+        result = subprocess.run(
+            ['curl', '--disable', '--silent', '--globoff', '--proto', '=https',
+             '--connect-timeout', str(min(15, remaining)), '--max-time', str(remaining),
+             '--max-filesize', str(limit), '--write-out', '%{http_code}', '--config', '-'],
+            input=''.join(f'{key} = {json.dumps(value, ensure_ascii=False)}\n'
+                          for key, value in config).encode('utf-8'),
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env,
+            timeout=remaining, check=False,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError('GitHub Actions artifact download timed out') from None
+    except OSError:
+        raise RuntimeError('Could not start GitHub Actions artifact transport') from None
+    status = int(result.stdout) if re.fullmatch(rb'[1-5][0-9]{2}', result.stdout) else None
+    if result.returncode:
+        detail = f'HTTP {status}; ' if status is not None else ''
+        raise RuntimeError(f'GitHub Actions artifact request failed ({detail}curl exit {result.returncode})')
+    if status is None:
+        raise RuntimeError('GitHub Actions artifact request returned no HTTP status')
+    return status
+
+
+# Accept a single temporary HTTPS URL from GitHub Actions artifact storage
+def artifact_redirect(headers):
+    responses = [block for block in re.split(rb'\r?\n\r?\n', headers) if block.startswith(b'HTTP/')]
+    final = responses[-1].splitlines() if responses else []
+    locations = [line.split(b':', 1)[1].strip() for line in final[1:]
+                 if line.lower().startswith(b'location:')]
+    if len(locations) != 1 or not re.fullmatch(rb'[!-~]{1,8192}', locations[0]):
+        raise RuntimeError('GitHub Actions artifact returned an invalid redirect')
+    location = locations[0].decode('ascii')
+    try:
+        parsed = urlsplit(location)
+        host = parsed.hostname or ''
+        allowed = re.fullmatch(r'[a-z0-9]+\.blob\.core\.windows\.net', host) or re.fullmatch(
+            r'[a-z0-9-]+\.actions\.githubusercontent\.com', host)
+        if (parsed.scheme == 'https' and allowed and parsed.port in (None, 443)
+                and not parsed.username and not parsed.password and not parsed.fragment
+                and parsed.path.startswith('/') and parsed.query and '\\' not in location):
+            return location
+    except ValueError:
+        pass
+    raise RuntimeError('GitHub Actions artifact redirected to an unsupported storage destination')
+
+
+# Request the API redirect with GitHub credentials, then download without them
+def download_actions_artifact(artifact_id):
+    identifier(artifact_id, r'[1-9][0-9]*')
+    token = os.environ.get('GH_TOKEN', '')
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+', token):
+        raise RuntimeError('GitHub Actions artifact download requires GH_TOKEN')
+    deadline = time.monotonic() + API_TIMEOUT_SECONDS
+    with tempfile.TemporaryDirectory(prefix='sdk-artifact-') as temporary:
+        root = Path(temporary)
+        headers = root / 'headers'
+        status = artifact_get(
+            f'https://api.github.com/repos/{REPOSITORY}/actions/artifacts/{artifact_id}/zip',
+            root / 'response', MAX_REDIRECT_HEADERS, deadline, response_headers=headers,
+            request_headers=('Accept: application/vnd.github+json', 'Authorization: Bearer ' + token),
+        )
+        if status != 302:
+            raise RuntimeError(f'GitHub Actions artifact API returned HTTP {status}; expected 302')
+        with headers.open('rb') as stream:
+            raw_headers = stream.read(MAX_REDIRECT_HEADERS + 1)
+        if len(raw_headers) > MAX_REDIRECT_HEADERS:
+            raise RuntimeError('GitHub Actions artifact response headers exceeded size limit')
+        location = artifact_redirect(raw_headers)
+        archive = root / 'archive.zip'
+        status = artifact_get(location, archive, MAX_ARTIFACT_BYTES, deadline)
+        if status != 200:
+            raise RuntimeError(f'GitHub Actions artifact storage returned HTTP {status}; expected 200')
+        if archive.stat().st_size > MAX_ARTIFACT_BYTES:
+            raise RuntimeError('GitHub Actions artifact archive exceeded size limit')
+        return archive.read_bytes()
 
 
 # Bind candidate provenance to the exact successful manual prepare attempt
@@ -211,14 +304,14 @@ def publish(run_id):
     result = api(f'repos/{REPOSITORY}/actions/runs/{run_id}/artifacts?per_page=100')
     name = f'sdk-release-{run_id}-{run["run_attempt"]}'
     matches = [item for item in result['artifacts'] if item['name'] == name and not item['expired']]
-    if len(matches) != 1 or matches[0]['size_in_bytes'] > 256 * 1024 * 1024:
+    if len(matches) != 1 or matches[0]['size_in_bytes'] > MAX_ARTIFACT_BYTES:
         raise ValueError('Missing, ambiguous, expired or oversized prepare artifact')
     artifact_id = identifier(str(matches[0]['id']), r'[1-9][0-9]*')
     artifact = matches[0]
     origin = artifact.get('workflow_run', {})
     if origin.get('id') != run['id'] or origin.get('head_sha') != run['head_sha'] or origin.get('head_branch') != 'main':
         raise ValueError('Artifact workflow provenance mismatch')
-    payload = api(f'repos/{REPOSITORY}/actions/artifacts/{artifact_id}/zip', raw=True)
+    payload = download_actions_artifact(artifact_id)
     if not payload or artifact.get('digest') != 'sha256:' + digest(payload):
         raise ValueError('GitHub artifact digest mismatch')
     recheck_run(run, run_id)

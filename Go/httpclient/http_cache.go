@@ -92,7 +92,7 @@ func entryBytes(e httpCacheEntry) int {
 }
 
 // Prepare conditional headers and a request-scoped cache ticket
-func (c *ValidatorCache) begin(req *http.Request, body string, settings map[string]any, redactor previewRedactor, options Options) httpCacheTicket {
+func (c *ValidatorCache) begin(req *http.Request, body string, settings map[string]any, redactor previewRedactor, options Options, preview bool) httpCacheTicket {
 	if c == nil || !options.Automatic || req.Method != http.MethodGet {
 		return httpCacheTicket{}
 	}
@@ -101,7 +101,7 @@ func (c *ValidatorCache) begin(req *http.Request, body string, settings map[stri
 			return httpCacheTicket{}
 		}
 	}
-	identity, err := json.Marshal([]any{req.Method, req.URL.String(), req.Header, body, settings["fields"], settings["field"], redactor.secrets, options.StatusOnly, options.NoRedirect, options.AllowUserInfo})
+	identity, err := json.Marshal([]any{req.Method, req.URL.String(), req.Header, body, settings["fields"], settings["field"], redactor.secrets, options.StatusOnly, preview, options.NoRedirect, options.AllowUserInfo})
 	if err != nil {
 		return httpCacheTicket{}
 	}

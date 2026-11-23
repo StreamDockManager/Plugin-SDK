@@ -2,30 +2,22 @@
 
 Turn JPEG, PNG, or the first frame of a GIF into a small image for a plugin display. These helpers use Go's standard image codecs; there is no native library or separate codec installation.
 
-| Requirement  | Details                                                      |
-| ------------ | ------------------------------------------------------------ |
-| Language     | Go 1.27.4+; use the [Go SDK setup](../README.md#get-started) |
-| Input        | Caller-supplied JPEG, PNG, or GIF bytes                      |
-| Output       | A sampled image, PNG bytes, or a display-ready data URI      |
-| Dependencies | Go SDK and standard-library codecs only                      |
+[Quick start](#get-started) · [Limits](#limits-and-memory) · [Go SDK](../README.md)
 
 ## Get started
 
-Add the [Go SDK](../README.md#get-started) to your plugin, then import its thumbnail package:
+Use [Go 1.27.4+ and the Go SDK](../README.md#get-started). Decode caller-supplied bytes
+in bounded background work, not the event loop:
 
 ```go
 import "github.com/StreamDockManager/Plugin-SDK/Go/thumbnail"
 
-// Run in background work with your operation's context.
-image, err := thumbnail.Decode(ctx, encodedBytes, 72, 72)
-```
-
-Check `err` before using the returned `image.Image`. Use `Render` when you want a display-ready PNG data URI rather than raw pixels:
-
-```go
+// Use your operation's cancellation context.
 result, err := thumbnail.Render(ctx, encodedBytes, 72, 72)
-// result.DataURI, result.Width, result.Height
 ```
+
+Check `err`, then use `result.DataURI`, `result.Width`, or `result.Height`. Use
+`thumbnail.Decode(ctx, encodedBytes, 72, 72)` when you need an `image.Image` instead.
 
 ## Choose a helper
 
@@ -75,4 +67,4 @@ go test ./thumbnail
 | A small output still uses substantial memory | Source decoding happens before sampling. Lower the source pixel limit and bound the input reader.   |
 | Image work delays button handling            | Schedule decoding as bounded background work, then apply the result on the plugin's owner loop.     |
 
-[Go SDK](../README.md) · [Shared helper contracts](../../README.md#reusable-plugin-helpers) · [MIT license](../../LICENSE)
+[Go SDK](../README.md) · [Shared helper contracts](../../REFERENCE.md#reusable-plugin-helpers) · [MIT license](../../LICENSE)

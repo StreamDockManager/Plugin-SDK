@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFile } from 'node:fs/promises';
 import { connect } from '../dist/src/runtime.js';
 import { HostInfo } from '../dist/src/protocol.js';
 
@@ -41,6 +42,40 @@ class Socket extends EventTarget {
 // Provide tick behavior for this session lifecycle fixture
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const options = { port: 1234, identity: 'fixture', host: new HostInfo({}) };
+
+test('portable registration with descriptor', async () => {
+    const fixture = JSON.parse(
+        await readFile(
+            new URL('../../contracts/fixtures/protocol-v1.json', import.meta.url),
+            'utf8',
+        ),
+    );
+    const original = globalThis.WebSocket;
+    globalThis.WebSocket = Socket;
+    try {
+        for (const name of ['legacy', 'opendeck', 'manager']) {
+            const descriptor = fixture.registration_descriptor;
+            const result = connect(
+                { handle() {} },
+                { ...options, host: new HostInfo(fixture[name]), descriptor },
+            );
+            const socket = Socket.current;
+            socket.open();
+            socket.end();
+            await result;
+            const expected = { event: 'registerPlugin', uuid: options.identity };
+            if (name === 'manager')
+                expected.payload = {
+                    capabilities: descriptor,
+                    network_debug: true,
+                    network_demand: true,
+                };
+            assert.deepEqual(socket.sent, [expected], name);
+        }
+    } finally {
+        globalThis.WebSocket = original;
+    }
+});
 
 // Verify fatal error retires queued work, waits for active callback and closes once
 test('fatal error retires queued work, waits for active callback and closes once', async () => {

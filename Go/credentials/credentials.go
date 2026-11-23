@@ -31,6 +31,24 @@ func Secret(s map[string]any, key string) (string, error) {
 // Redact known settings secrets from an error
 func SafeError(err error, s map[string]any) error { return Redact(err, s, nil) }
 
+var serviceURL = regexp.MustCompile(`https?://[^\s"<>]+`)
+
+func sensitive(key string) bool {
+	k := strings.ToLower(key)
+	return strings.Contains(k, "password") || strings.Contains(k, "secret") || strings.Contains(k, "token") || strings.Contains(k, "api_key") || strings.Contains(k, "api-key") || strings.Contains(k, "authorization") || strings.Contains(k, "cookie") || k == "webhook"
+}
+
+// SecretSettings retains only the string fields used by the diagnostic redactor.
+func SecretSettings(settings map[string]any) map[string]any {
+	out := map[string]any{}
+	for key, value := range settings {
+		if raw, ok := value.(string); ok && sensitive(key) && raw != "" {
+			out[key] = raw
+		}
+	}
+	return out
+}
+
 // Remove default and caller-selected sensitive settings from an error
 func Redact(err error, s map[string]any, sensitiveKeys []string) error {
 	if err == nil {
@@ -38,8 +56,7 @@ func Redact(err error, s map[string]any, sensitiveKeys []string) error {
 	}
 	text := err.Error()
 	for key, v := range s {
-		k := strings.ToLower(key)
-		if slices.Contains(sensitiveKeys, key) || strings.Contains(k, "password") || strings.Contains(k, "secret") || strings.Contains(k, "token") || strings.Contains(k, "api_key") || strings.Contains(k, "api-key") || strings.Contains(k, "authorization") || strings.Contains(k, "cookie") || k == "webhook" {
+		if slices.Contains(sensitiveKeys, key) || sensitive(key) {
 			if raw, ok := v.(string); ok {
 				for _, value := range []string{raw, os.ExpandEnv(raw)} {
 					if value != "" {
@@ -52,7 +69,7 @@ func Redact(err error, s map[string]any, sensitiveKeys []string) error {
 		}
 	}
 	// net/http errors may contain an authenticated URL or service-controlled body
-	text = regexp.MustCompile(`https?://[^\s"<>]+`).ReplaceAllString(text, "[service URL]")
+	text = serviceURL.ReplaceAllString(text, "[service URL]")
 	var safe interface{ SafeError() error }
 	if errors.As(err, &safe) {
 		return safe.SafeError()

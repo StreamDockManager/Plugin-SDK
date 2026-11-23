@@ -1,7 +1,7 @@
 import { keyLayout, wideLayout } from './display-layouts.js';
 import type { Client, Handler } from './runtime.js';
 import type { Event, Settings } from './protocol.js';
-import { redact as safeError } from './credentials.js';
+import { redact as safeError, secretSettings } from './credentials.js';
 import { merge } from './settings.js';
 export interface Display {
     title?: string;
@@ -78,7 +78,9 @@ export class Renderer {
     }
     // Publish the desired display and remember its last state
     render(client: Client, context: string, desired: Display): void {
-        for (const message of displayMessages(context, this.last.get(context), desired, true))
+        const previous = this.last.get(context);
+        if (previous && feedbackEqual(previous, desired)) return;
+        for (const message of displayMessages(context, previous, desired, true))
             client.send(message.event, context, message.payload);
         this.last.set(context, structuredClone(desired));
     }
@@ -153,6 +155,7 @@ export class Plugin implements Handler {
         string,
         { generation: number; context: string; cancel: AbortController }
     >();
+    private secretFields?: Map<string, Settings>;
     private generation = 0;
     // Initialize action registration and binding-owned rendering state
     constructor(
@@ -196,17 +199,28 @@ export class Plugin implements Handler {
         if (
             ['willAppear', 'didReceiveSettings', 'didReceiveGlobalSettings'].includes(event.event)
         ) {
-            const snapshots = structuredClone([
-                this.globals,
-                event.payload?.settings ?? {},
-                ...[...this.bindings.values()].map((binding) => binding.settings),
-            ]);
+            this.secretFields ??= new Map(
+                [...this.bindings].map(([id, b]) => [id, secretSettings(b.settings)]),
+            );
+            const incoming = secretSettings(event.payload?.settings ?? {});
+            const snapshots = [
+                secretSettings(this.globals),
+                incoming,
+                ...this.secretFields.values(),
+            ];
+            if (event.event !== 'didReceiveGlobalSettings') {
+                const id = event.context ?? '';
+                if (Object.keys(incoming).length) this.secretFields.set(id, incoming);
+                else this.secretFields.delete(id);
+            }
             client.logRedactor = (text) =>
                 snapshots.reduce(
-                    (message, settings) => safeError(Error(message), settings).message,
+                    (message, settings) =>
+                        safeError(Error(message), settings, (name) => process.env[name]).message,
                     text,
                 );
         }
+        if (event.event === 'willDisappear') this.secretFields?.delete(event.context ?? '');
         const context = event.context ?? '',
             name = event.event,
             action = event.action ?? '',
@@ -217,7 +231,8 @@ export class Plugin implements Handler {
         try {
             if (name === 'didReceiveGlobalSettings') {
                 this.globals = structuredClone(event.payload?.settings ?? {});
-                for (const key of this.jobs.keys()) this.cancelJob(key);
+                for (const key of this.jobs.keys())
+                    if (this.cancelOnGlobalSettings(key)) this.cancelJob(key);
                 return;
             }
             if (name === 'didReceivePluginTheme') {
@@ -347,6 +362,11 @@ export class Plugin implements Handler {
             return undefined;
         }
     }
+    // Connectors manage the lifetime of their shared worker when settings change.
+    protected cancelOnGlobalSettings(_key: string): boolean {
+        return true;
+    }
+
     // Cancel outstanding work owned by this binding
     cancelJob(key: string): void {
         this.jobs.get(key)?.cancel.abort();

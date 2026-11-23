@@ -55,7 +55,7 @@ impl Drop for IncomingLease {
     }
 }
 struct QueuedMessage {
-    value: Value,
+    encoded: String,
     bytes: usize,
 }
 /// A receiver that releases byte capacity as messages are consumed
@@ -67,7 +67,12 @@ impl OutboundReceiver {
     // Return reserved capacity to the shared budget
     fn release(&self, message: QueuedMessage) -> Value {
         self.bytes.fetch_sub(message.bytes, Ordering::AcqRel);
-        message.value
+        serde_json::from_str(&message.encoded).expect("queued JSON")
+    }
+    fn try_wire(&self) -> Option<String> {
+        let message = self.receiver.try_recv().ok()?;
+        self.bytes.fetch_sub(message.bytes, Ordering::AcqRel);
+        Some(message.encoded)
     }
     // Receive an available event without blocking
     pub fn try_recv(&self) -> std::result::Result<Value, TryRecvError> {
@@ -116,6 +121,7 @@ pub(crate) struct Inner {
     dropped_logs: AtomicU64,
     separate_logs: AtomicBool,
     log_redactor: Mutex<Option<LogRedactor>>,
+    job_redactors: Mutex<HashMap<u64, LogRedactor>>,
     host: HostInfo,
     identity: String,
     out: SyncSender<QueuedMessage>,
@@ -135,7 +141,35 @@ pub(crate) struct Inner {
     result_rx: Mutex<Receiver<JobResult>>,
     sequence: AtomicU64,
 }
+pub(crate) struct RedactionLease(std::sync::Weak<Inner>, u64);
+impl Drop for RedactionLease {
+    fn drop(&mut self) {
+        if let Some(inner) = self.0.upgrade() {
+            inner.job_redactors.lock().unwrap().remove(&self.1);
+        }
+    }
+}
 impl Inner {
+    fn redact(&self, text: &str) -> String {
+        let current = self.log_redactor.lock().unwrap().clone();
+        let jobs: Vec<_> = self
+            .job_redactors
+            .lock()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect();
+        let mut output = text.to_owned();
+        for f in jobs {
+            if !current.as_ref().is_some_and(|c| Arc::ptr_eq(&f, c)) {
+                output = f(&output);
+            }
+        }
+        if let Some(f) = current {
+            output = f(&output);
+        }
+        output
+    }
     // Wake the owner loop for newly available work
     fn notify(&self) {
         if let Some(owner) = self.owner_thread.lock().unwrap().as_ref() {
@@ -147,7 +181,8 @@ impl Inner {
     }
     // Admit the message under queue and byte limits
     fn enqueue(&self, value: Value) -> Result<()> {
-        let bytes = serde_json::to_vec(&value)?.len();
+        let encoded = serde_json::to_string(&value)?;
+        let bytes = encoded.len();
         if bytes > MAX_MESSAGE_BYTES {
             return Err(error("SDK message exceeds 1048576-byte UTF-8 JSON limit"));
         }
@@ -166,7 +201,7 @@ impl Inner {
                 Err(current) => used = current,
             }
         }
-        if self.out.try_send(QueuedMessage { value, bytes }).is_err() {
+        if self.out.try_send(QueuedMessage { encoded, bytes }).is_err() {
             self.out_bytes.fetch_sub(bytes, Ordering::AcqRel);
             return Err(error("SDK outbound queue full"));
         }
@@ -178,25 +213,22 @@ impl Inner {
         if self.stop.load(Ordering::Acquire) {
             return Err(error("SDK session closed"));
         }
-        if serde_json::to_vec(&message)?.len() > MAX_MESSAGE_BYTES {
-            return Err(error("SDK message exceeds 1048576-byte UTF-8 JSON limit"));
-        }
         if !self.separate_logs.load(Ordering::Acquire) {
             return self.enqueue(message);
         }
+        let encoded = serde_json::to_string(&message)?;
+        let bytes = encoded.len();
+        if bytes > MAX_MESSAGE_BYTES {
+            return Err(error("SDK message exceeds 1048576-byte UTF-8 JSON limit"));
+        }
         let mut logs = self.logs.lock().unwrap();
         if logs.len() >= 128
-            || logs.iter().map(|value| value.bytes).sum::<usize>()
-                + serde_json::to_vec(&message)?.len()
-                > MAX_LOG_BYTES
+            || logs.iter().map(|value| value.bytes).sum::<usize>() + bytes > MAX_LOG_BYTES
         {
             self.dropped_logs.fetch_add(1, Ordering::Relaxed);
             return Err(error("SDK log queue full"));
         }
-        logs.push_back(QueuedMessage {
-            bytes: serde_json::to_vec(&message)?.len(),
-            value: message,
-        });
+        logs.push_back(QueuedMessage { bytes, encoded });
         self.notify();
         Ok(())
     }
@@ -220,6 +252,7 @@ impl Client {
                     dropped_logs: AtomicU64::new(0),
                     separate_logs: AtomicBool::new(false),
                     log_redactor: Mutex::new(None),
+                    job_redactors: Mutex::new(HashMap::new()),
                     host,
                     identity,
                     out,
@@ -252,8 +285,20 @@ impl Client {
     pub fn isolate_logs(&self) {
         self.inner.separate_logs.store(true, Ordering::Release);
     }
+    fn network_demand(&self) -> bool {
+        self.supports("plugin-protocol-v1")
+            && self.supports("network-demand-v1")
+            && self.supports("network-payload-v1")
+            && self.host().run_id().is_some()
+    }
     // Drain queued diagnostic frames for transport
     pub fn drain_logs(&self) -> Vec<Value> {
+        self.drain_log_frames()
+            .iter()
+            .map(|frame| serde_json::from_str(frame).expect("queued JSON"))
+            .collect()
+    }
+    fn drain_log_frames(&self) -> Vec<String> {
         let mut values = Vec::new();
         let lost = self.inner.dropped_logs.swap(0, Ordering::AcqRel);
         if lost > 0 {
@@ -261,7 +306,7 @@ impl Client {
             if self.supports("plugin-logs-v1") {
                 payload["stream"] = json!("stderr");
             }
-            values.push(json!({"event":"logMessage","payload":payload}));
+            values.push(json!({"event":"logMessage","payload":payload}).to_string());
         }
         values.extend(
             self.inner
@@ -269,7 +314,7 @@ impl Client {
                 .lock()
                 .unwrap()
                 .drain(..)
-                .map(|message| message.value),
+                .map(|message| message.encoded),
         );
         values
     }
@@ -290,10 +335,9 @@ impl Client {
             },
             // Resolve the current redactor without retaining the runtime through the diagnostics callback
             move |text| {
-                let redact = redactor
+                redactor
                     .upgrade()
-                    .and_then(|inner| inner.log_redactor.lock().unwrap().clone());
-                redact.map(|f| f(text)).unwrap_or_else(|| text.into())
+                    .map_or_else(|| text.to_owned(), |inner| inner.redact(text))
             },
         );
     }
@@ -368,16 +412,13 @@ impl Client {
             message["context"] = json!(context)
         }
         if !payload.is_null() {
-            message["payload"] = payload.clone()
-        }
-        if serde_json::to_vec(&message)?.len() > MAX_MESSAGE_BYTES {
-            return Err(error("SDK message exceeds 1048576-byte UTF-8 JSON limit"));
+            message["payload"] = payload
         }
         if event == "logMessage" {
             return self.inner.queue_log(message);
         }
         let request = if event == "desktopInput" && self.inner.current.lock().unwrap().is_some() {
-            let id = payload["request_id"]
+            let id = message["payload"]["request_id"]
                 .as_str()
                 .filter(|v| !v.is_empty())
                 .ok_or_else(|| error("desktop input requires a request ID"))?
@@ -433,6 +474,14 @@ impl Client {
     pub fn get_settings(&self, id: &str) -> Result<()> {
         self.send("getSettings", id, Value::Null)
     }
+    /// Request settings on a known VSD Craft host using this connection's registration UUID
+    /// Settings arrive separately as a normal `didReceiveSettings` event
+    pub fn request_vsd_craft_settings(&self) -> Result<()> {
+        if self.inner.identity.trim().is_empty() {
+            return Err(error("VSD Craft settings require a registration UUID"));
+        }
+        self.send("getSettings", &self.inner.identity, Value::Null)
+    }
     // Queue a replacement of plugin-global settings
     pub fn global_settings(&self, value: Value) -> Result<()> {
         self.send("setGlobalSettings", &self.inner.identity, value)
@@ -466,8 +515,13 @@ impl Client {
     }
     // Apply the configured redactor to diagnostic text
     fn redact_log(&self, text: &str) -> String {
-        let redact = self.inner.log_redactor.lock().unwrap().clone();
-        redact.map(|f| f(text)).unwrap_or_else(|| text.into())
+        self.inner.redact(text)
+    }
+    pub(crate) fn pin_redactor(&self) -> Option<RedactionLease> {
+        let redact = self.inner.log_redactor.lock().unwrap().clone()?;
+        let id = self.inner.sequence.fetch_add(1, Ordering::Relaxed);
+        self.inner.job_redactors.lock().unwrap().insert(id, redact);
+        Some(RedactionLease(Arc::downgrade(&self.inner), id))
     }
     // Create a writer that frames text as plugin logs
     pub fn log_stream(&self, stream: &str, text: &str) -> Result<()> {
@@ -572,6 +626,7 @@ impl Client {
         let sender = self.inner.results.clone();
         let weak = Arc::downgrade(&self.inner);
         let cancelled = cancel.clone();
+        let lease = self.pin_redactor();
         if !self
             .inner
             .pool
@@ -587,7 +642,10 @@ impl Client {
                     let _ = sender.send(JobResult {
                         id,
                         value,
-                        apply: Box::new(apply),
+                        apply: Box::new(move |c, v| {
+                            let _lease = lease;
+                            apply(c, v)
+                        }),
                     });
                     if let Some(inner) = weak.upgrade() {
                         inner.wake.store(true, Ordering::Release);
@@ -668,6 +726,17 @@ impl Client {
     // Deliver the event through the handler lifecycle
     pub fn dispatch(&self, handler: &mut impl Handler, event: &Event) -> Result<()> {
         if event.event == crate::THEME_EVENT && !self.observe_plugin_theme(&event.payload) {
+            return Ok(());
+        }
+        if event.event == "requestNetworkPayload" && self.network_demand() {
+            if let Some(run) = self.host().run_id() {
+                let (sent, received) = self.network.snapshot();
+                self.send(
+                    "networkPayload",
+                    "",
+                    json!({"run_id": run, "sent_bytes": sent, "received_bytes": received}),
+                )?;
+            }
             return Ok(());
         }
         if event.event == "didReceiveLogSettings" && self.supports("plugin-logs-v1") {
@@ -922,6 +991,9 @@ pub fn connect(
         let mut registration = json!({"event":"registerPlugin","uuid":options.identity});
         if client.supports("plugin-protocol-v1") {
             registration["payload"] = json!({"capabilities":descriptor,"network_debug":true});
+            if client.network_demand() {
+                registration["payload"]["network_demand"] = json!(true);
+            }
         }
         socket.send(Message::Text(registration.to_string().into()))?;
         socket.get_mut().set_read_timeout(None)?;
@@ -995,11 +1067,12 @@ fn pump_transport(
     let mut admitted: Option<(Event, IncomingLease)> = None;
     let mut events = mio::Events::with_capacity(8);
     let writes = |socket: &mut tungstenite::WebSocket<TcpStream>| -> Result<()> {
-        for value in output.try_iter().take(128).chain(client.drain_logs()) {
+        for value in std::iter::from_fn(|| output.try_wire())
+            .take(128)
+            .chain(client.drain_log_frames())
+        {
             socket.get_mut().set_nonblocking(false)?;
-            let written = ready_io(&observed, || {
-                socket.send(Message::Text(value.to_string().into()))
-            });
+            let written = ready_io(&observed, || socket.send(Message::Text(value.into())));
             socket.get_mut().set_nonblocking(true)?;
             written?;
         }
@@ -1077,6 +1150,9 @@ fn dispatch_transport(
     let mut deadline = handler.next_poll(Instant::now());
     let mut backoff = 0;
     let mut backoff_until = Instant::now();
+    let periodic_network = client.supports("network-payload-v1")
+        && !client.network_demand()
+        && client.host().run_id().is_some();
     let mut network = Instant::now() + Duration::from_secs(1);
     let mut batch: Option<(Event, Instant, IncomingLease)> = None;
     let flush = |batch: &mut Option<(Event, Instant, IncomingLease)>,
@@ -1111,7 +1187,7 @@ fn dispatch_transport(
             backoff_until = now + Duration::from_secs(backoff);
             deadline = handler.next_poll(Instant::now());
         }
-        if now >= network {
+        if periodic_network && now >= network {
             network = now + Duration::from_secs(1);
             if client.supports("network-payload-v1") {
                 if let Some(run) = client.host().run_id() {
@@ -1133,11 +1209,7 @@ fn dispatch_transport(
                 for due in [
                     deadline.map(|d| d.max(backoff_until)),
                     batch.as_ref().map(|(_, d, _)| *d),
-                    client
-                        .host()
-                        .run_id()
-                        .filter(|_| client.supports("network-payload-v1"))
-                        .map(|_| network),
+                    periodic_network.then_some(network),
                 ]
                 .into_iter()
                 .flatten()

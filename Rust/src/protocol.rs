@@ -27,6 +27,8 @@ pub const CAPABILITIES: &[&str] = &[
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Surface {
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub activation_token: String,
     pub control_id: String,
     pub width: u32,
     pub height: u32,
@@ -184,8 +186,23 @@ pub struct ActionCapability {
     pub icon: ThemedAsset,
     pub states: Vec<ThemedAsset>,
 }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PermissionDeclaration {
+    pub version: u8,
+    pub actions: BTreeMap<String, ActionPermissions>,
+}
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct ActionPermissions {
+    pub purpose: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub required: Vec<BTreeMap<String, String>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub optional: Vec<BTreeMap<String, String>>,
+}
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Capabilities {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<PermissionDeclaration>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub minimum_manager: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

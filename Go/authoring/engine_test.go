@@ -155,3 +155,49 @@ func TestFailedJobAdmissionRemovesIdentity(t *testing.T) {
 		t.Fatal("failed admission identity reused")
 	}
 }
+
+// Optional failure observers see only current admitted background job failures
+func TestOptionalFailureObserverRejectsStaleJobs(t *testing.T) {
+	e := fixture(t)
+	defer e.Close()
+	calls := 0
+	want := errors.New("provider failed")
+	e.Feature.ObserveFailure = func(_ context.Context, _ *sdk.Client, id string, err error) {
+		calls++
+		if id != "binding" || !errors.Is(err, want) {
+			t.Fatal(id, err)
+		}
+	}
+	e.Jobs["work"] = BackgroundJob{Owner: "binding", Generation: 2, Cancel: func() {}, Apply: func(context.Context, *sdk.Client, JobResult, BackgroundJob) error { return nil }}
+	if err := e.ApplyJobResult(context.Background(), nil, JobResult{ID: "work", Generation: 1, Err: want}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 0 {
+		t.Fatal("stale result reported")
+	}
+	if err := e.ApplyJobResult(context.Background(), nil, JobResult{ID: "work", Generation: 2, Err: want}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatal(calls)
+	}
+}
+
+// Failure observation follows custom action admission without reporting inspector traffic
+func TestFailureObserverUsesActionAdmission(t *testing.T) {
+	e := fixture(t)
+	defer e.Close()
+	want := errors.New("action failed")
+	e.Feature.Before = func(context.Context, *sdk.Client, sdk.Event) (bool, error) { return true, want }
+	calls := 0
+	e.Feature.ObserveFailure = func(context.Context, *sdk.Client, string, error) { calls++ }
+	e.Feature.ShouldLogAction = func(ev sdk.Event) bool { return ev.Event == "keyUp" }
+	for _, event := range []string{"sendToPlugin", "didReceiveSettings", "keyUp"} {
+		if err := e.Handle(context.Background(), nil, sdk.Event{Event: event, Context: "key"}); !errors.Is(err, want) {
+			t.Fatal(err)
+		}
+	}
+	if calls != 1 {
+		t.Fatal(calls)
+	}
+}

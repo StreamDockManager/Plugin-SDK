@@ -19,6 +19,13 @@ type PollState struct {
 
 // Store a polling outcome and compute its next attempt
 func (p *PollState) Complete(value any, failed bool, now time.Time, interval time.Duration, jitter float64, retryAt time.Time) {
+	if !failed {
+		value = settings.Clone(value)
+	}
+	p.complete(value, failed, now, interval, jitter, retryAt)
+}
+
+func (p *PollState) complete(value any, failed bool, now time.Time, interval time.Duration, jitter float64, retryAt time.Time) {
 	if failed {
 		p.Failures = min(16, p.Failures+1)
 		p.Stale = p.Available || !p.ObservedAt.IsZero()
@@ -26,7 +33,7 @@ func (p *PollState) Complete(value any, failed bool, now time.Time, interval tim
 	} else {
 		p.Failures = 0
 		p.Stale = false
-		p.LastValue = settings.Clone(value)
+		p.LastValue = value
 		p.ObservedAt = now
 		p.Available = true
 		p.Next = Next(now, interval)
@@ -143,6 +150,16 @@ func (r *Resources) Begin(key string) (uint64, error) {
 
 // Accept a current poll result and ignore obsolete generations
 func (r *Resources) Complete(key string, generation uint64, value any, failed bool, now time.Time, jitter float64, retryAt time.Time) bool {
+	return r.complete(key, generation, value, failed, false, now, jitter, retryAt)
+}
+
+// CompleteInvalidated accepts a current denied poll and clears every subscribed
+// view of its previously authorized value while preserving retry scheduling.
+func (r *Resources) CompleteInvalidated(key string, generation uint64, now time.Time, jitter float64, retryAt time.Time) bool {
+	return r.complete(key, generation, nil, true, true, now, jitter, retryAt)
+}
+
+func (r *Resources) complete(key string, generation uint64, value any, failed, discard bool, now time.Time, jitter float64, retryAt time.Time) bool {
 	state, exists := r.States[key]
 	if !exists || r.pending[key] != generation {
 		return false
@@ -153,16 +170,26 @@ func (r *Resources) Complete(key string, generation uint64, value any, failed bo
 	} else {
 		delete(r.cooldowns, key)
 	}
+	var shared any
+	if !failed {
+		shared = settings.Clone(value)
+	}
 	forced := state.Next.IsZero()
 	for id, binding := range r.bindings {
-		if binding.key != key || (!forced && !binding.state.Next.IsZero() && now.Before(binding.state.Next)) {
+		if binding.key != key || (!discard && !forced && !binding.state.Next.IsZero() && now.Before(binding.state.Next)) {
 			continue
 		}
-		binding.state.Complete(value, failed, now, binding.interval, jitter, retryAt)
+		if discard {
+			binding.state.LastValue, binding.state.Available, binding.state.ObservedAt = nil, false, time.Time{}
+		}
+		binding.state.complete(shared, failed, now, binding.interval, jitter, retryAt)
 		if binding.interval == 0 {
 			binding.state.Next = Never
 		}
 		r.bindings[id] = binding
+	}
+	if discard {
+		state.LastValue, state.Available, state.ObservedAt = nil, false, time.Time{}
 	}
 	state.Complete(value, failed, now, 0, jitter, retryAt)
 	r.States[key] = state

@@ -92,6 +92,7 @@ function httpDate(value: string): string | undefined {
     if (!parts || Number(parts[4]) < 1970) return undefined;
     return `${parts[1].slice(0, 3)}, ${parts[2]} ${parts[3]} ${parts[4]} ${parts[5]} GMT`;
 }
+const completeShared = Symbol('completeShared');
 export class PollState {
     next = 0;
     failures = 0;
@@ -107,6 +108,23 @@ export class PollState {
         jitter = 0,
         retryAt = 0,
     ): void {
+        this[completeShared](
+            error ? undefined : structuredClone(value),
+            error,
+            now,
+            interval,
+            jitter,
+            retryAt,
+        );
+    }
+    [completeShared](
+        value: any,
+        error: unknown,
+        now: number,
+        interval: number,
+        jitter = 0,
+        retryAt = 0,
+    ): void {
         if (error) {
             this.failures = Math.min(16, this.failures + 1);
             this.stale = this.observedAt !== undefined;
@@ -114,7 +132,7 @@ export class PollState {
         } else {
             this.failures = 0;
             this.stale = false;
-            this.lastValue = structuredClone(value);
+            this.lastValue = value;
             this.observedAt = now;
             this.next = nextUpdate(now, interval);
         }
@@ -190,12 +208,13 @@ export class Resources {
         this.pending.delete(key);
         if (retryAt > now) this.cooldowns.set(key, retryAt);
         else this.cooldowns.delete(key);
+        const shared = error ? undefined : structuredClone(value);
         const forced = this.states.get(key)!.next === 0;
         for (const binding of this.bindings.values()) {
             if (binding.key !== key || (!forced && now < binding.state.next)) continue;
-            PollState.prototype.complete.call(
+            PollState.prototype[completeShared].call(
                 binding.state,
-                value,
+                shared,
                 error,
                 now,
                 binding.interval,

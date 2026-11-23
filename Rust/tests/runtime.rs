@@ -12,6 +12,13 @@ use tungstenite::{accept, Message, WebSocket};
 fn host(
     script: impl FnOnce(WebSocket<TcpStream>) + Send + 'static,
 ) -> (u16, thread::JoinHandle<()>) {
+    registration_host(json!({"event":"registerPlugin","uuid":"fixture"}), script)
+}
+
+fn registration_host(
+    expected: Value,
+    script: impl FnOnce(WebSocket<TcpStream>) + Send + 'static,
+) -> (u16, thread::JoinHandle<()>) {
     let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let port = listener.local_addr().unwrap().port();
     let worker = thread::spawn(move || {
@@ -22,10 +29,7 @@ fn host(
         let mut socket = accept(stream).unwrap();
         let registration: Value =
             serde_json::from_str(socket.read().unwrap().to_text().unwrap()).unwrap();
-        assert_eq!(
-            registration,
-            json!({"event":"registerPlugin","uuid":"fixture"})
-        );
+        assert_eq!(registration, expected);
         script(socket);
     });
     (port, worker)
@@ -414,6 +418,40 @@ fn no_deadline_wait_wakes_for_worker_completion() {
     )
     .unwrap();
     worker.join().unwrap();
+}
+
+#[test]
+fn portable_registration_with_descriptor() {
+    let fixture: Value =
+        serde_json::from_str(include_str!("../testdata/protocol-v1.json")).unwrap();
+    struct Idle;
+    impl Handler for Idle {
+        fn handle(&mut self, _: &Client, _: &Event) -> Result<()> {
+            Ok(())
+        }
+    }
+    for name in ["legacy", "opendeck", "manager"] {
+        let mut expected = json!({"event":"registerPlugin","uuid":"fixture"});
+        let descriptor = fixture["registration_descriptor"].clone();
+        if name == "manager" {
+            expected["payload"] =
+                json!({"capabilities": descriptor, "network_debug": true, "network_demand": true});
+        }
+        let (port, worker) = registration_host(expected, |mut socket| {
+            send(&mut socket, json!({"event":"shutdown"}));
+            let _ = socket.read();
+        });
+        let mut launch = options(port);
+        launch.host = HostInfo::parse(&fixture[name].to_string()).unwrap();
+        connect(
+            &mut Idle,
+            launch,
+            Some(serde_json::from_value(descriptor).unwrap()),
+            Arc::new(AtomicBool::new(false)),
+        )
+        .unwrap();
+        worker.join().unwrap();
+    }
 }
 
 #[test]

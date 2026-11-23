@@ -64,7 +64,11 @@ func (r *Renderer) Render(ctx context.Context, c *sdk.Client, id string, view Di
 	if old, ok := r.last[id]; ok {
 		previous = &old
 	}
-	for _, message := range DisplayMessages(id, previous, view, true, true) {
+	messages := DisplayMessages(id, previous, view, true, true)
+	if previous != nil && len(messages) == 0 && previous.State == view.State && previous.Layout == view.Layout {
+		return nil
+	}
+	for _, message := range messages {
 		if err := c.Send(ctx, message); err != nil {
 			return err
 		}

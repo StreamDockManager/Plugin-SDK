@@ -15,6 +15,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 from build import run
+from release import VERSION
 
 
 # Install the candidate with the same locked tarballs warmed by the SDK's npm ci
@@ -62,15 +63,15 @@ def main():
         # Crates normalize source mtimes. A reused target can mistake a changed
         # same-version candidate for an older extraction, so qualify a fresh build
         env['CARGO_TARGET_DIR']=str(target/'cargo-target')
-        with zipfile.ZipFile(ROOT/'artifacts/stream-dock-manager-plugin-sdk-go-0.1.0.zip') as archive:
+        with zipfile.ZipFile(ROOT/f'artifacts/stream-dock-manager-plugin-sdk-go-{VERSION}.zip') as archive:
             archive.extractall(target/'go')
-        module=next((target/'go').glob('github.com/StreamDockManager/Plugin-SDK/Go@v0.1.0'))
+        module=next((target/'go').glob(f'github.com/StreamDockManager/Plugin-SDK/Go@v{VERSION}'))
         subprocess.run(['go','test','./...'],cwd=module,env=env,check=True)
-        with tarfile.open(ROOT/'artifacts/stream-dock-manager-plugin-sdk-0.1.0.crate') as archive:
+        with tarfile.open(ROOT/f'artifacts/stream-dock-manager-plugin-sdk-{VERSION}.crate') as archive:
             archive.extractall(target/'rust',filter='data')
-        manifest=target/'rust/stream-dock-manager-plugin-sdk-0.1.0/Cargo.toml'
+        manifest=target/f'rust/stream-dock-manager-plugin-sdk-{VERSION}/Cargo.toml'
         subprocess.run(['cargo','test','--locked','--offline','--all-features','--manifest-path',str(manifest)],env=env,check=True)
-        wheel=next((ROOT/'artifacts').glob('stream_dock_manager_plugin_sdk-0.1.0-*.whl'))
+        wheel=next((ROOT/'artifacts').glob(f'stream_dock_manager_plugin_sdk-{VERSION}-*.whl'))
         with zipfile.ZipFile(wheel) as archive:
             assert not any('__pycache__' in name or name.endswith('.pyc') for name in archive.namelist()), 'wheel contains build caches'
         subprocess.run([sys.executable,'-m','pip','install','--no-index','--no-deps','--no-compile','--target',str(target/'python'),str(wheel)],env=env,check=True)
@@ -82,16 +83,16 @@ from stream_dock_manager_sdk import testkit, credentials, process
 for name in ['authoring','connectors','credentials','service','httpclient','process','settings','storage','hoststorage','buildcache','inspectors','testkit','managedstate','requests','connectedws','thumbnail','cache','discovery','operations']:
     module=importlib.import_module('stream_dock_manager_sdk.'+name)
     assert Path(module.__file__).is_relative_to(Path(sys.argv[1]))
-assert stream_dock_manager_sdk.__version__=='0.1.0'
+assert stream_dock_manager_sdk.__version__==sys.argv[2]
 assert credentials.secret({'password':'${KEY}'},'password',lambda _: 'value')=='value'
 assert testkit.tls()[0] is not None
 assert process.run(sys.executable,['-c','print("isolated")']).strip()=='isolated'
 print('isolated wheel modules, TLS resources and process passed')
 """
-        subprocess.run([sys.executable,'-c',check,str(target/'python')],env=env,check=True)
+        subprocess.run([sys.executable,'-c',check,str(target/'python'),VERSION],env=env,check=True)
     with tempfile.TemporaryDirectory() as temporary:
         project=Path(temporary)
-        install_node_candidate(project, ROOT/'artifacts/stream-dock-manager-plugin-sdk-0.1.0.tgz', env)
+        install_node_candidate(project, ROOT/f'artifacts/stream-dock-manager-plugin-sdk-{VERSION}.tgz', env)
         (project/'main.mjs').write_text("import {Client,run} from 'stream-dock-manager-plugin-sdk'; const c=new Client(); c.title('a','isolated'); console.log(c.drain()[0].payload.title);\n")
         compile_script="""import {bundlePlugin} from 'stream-dock-manager-plugin-sdk/build';
 import {readFile} from 'node:fs/promises';

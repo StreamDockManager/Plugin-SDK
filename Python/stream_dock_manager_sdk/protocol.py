@@ -60,6 +60,7 @@ class Surface:
     feedback_target: str = ''
     request_id: str = ''
     touch: dict | None = None
+    activation_token: str = field(default='', repr=False)
 
     # Construct surface metadata from the recognized dataclass fields
     @classmethod

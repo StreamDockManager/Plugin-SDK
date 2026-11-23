@@ -25,10 +25,11 @@ type probeWork struct {
 }
 
 type ProbePool struct {
-	mu      sync.Mutex
-	pending chan probeWork
-	done    chan struct{}
-	closed  bool
+	mu                   sync.Mutex
+	pending              chan probeWork
+	done                 chan struct{}
+	closed               bool
+	workers, outstanding int
 }
 
 // Workers and their queue are allocated only when the first probe is submitted
@@ -44,12 +45,14 @@ func (p *ProbePool) Submit(ctx context.Context, job func()) bool {
 	if p.pending == nil {
 		p.pending = make(chan probeWork, 32)
 		p.done = make(chan struct{})
-		for range 4 {
-			go p.worker(p.pending, p.done)
-		}
 	}
 	select {
 	case p.pending <- probeWork{ctx, job}:
+		p.outstanding++
+		if p.workers < 4 && p.workers < p.outstanding {
+			p.workers++
+			go p.worker(p.pending, p.done)
+		}
 		return true
 	default:
 		return false
@@ -71,6 +74,9 @@ func (p *ProbePool) worker(pending <-chan probeWork, done <-chan struct{}) {
 			if job.ctx.Err() == nil {
 				job.run()
 			}
+			p.mu.Lock()
+			p.outstanding--
+			p.mu.Unlock()
 		}
 	}
 }

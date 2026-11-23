@@ -49,7 +49,7 @@ class Starters(unittest.TestCase):
                         generate(target, 'com.example.starter.' + kind, kind, 'Standalone sample')
                     result = validate_project(target)
                     self.assertEqual(result['identity'], 'com.example.starter.' + kind)
-                    self.assertEqual(result['version'], '0.1.0')
+                    self.assertEqual(result['version'], '0.1.1')
                     self.assertEqual(result['execution'], 'none; offline static validation only')
                     self.assertTrue((target / 'LICENSE').is_file())
                     self.assertFalse((target / 'licenses').exists())
@@ -64,7 +64,7 @@ class Starters(unittest.TestCase):
                     self.assertIn('requires explicit --host', blocked.stderr)
                     self.assertFalse((target / 'artifacts').exists())
                     if kind == 'rust':
-                        self.assertIn('name = "com-example-starter-rust"\nversion = "0.1.0"', (target / 'Cargo.lock').read_text())
+                        self.assertIn('name = "com-example-starter-rust"\nversion = "0.1.1"', (target / 'Cargo.lock').read_text())
                         self.assertNotIn('sdk-example-rust', (target / 'Cargo.toml').read_text())
                     if kind == 'go':
                         self.assertIn('module example.com/com.example.starter.go', (target / 'go.mod').read_text())
@@ -118,7 +118,7 @@ class Starters(unittest.TestCase):
             cargo = tomllib.loads((target / 'Cargo.toml').read_text())
             self.assertEqual(cargo['package']['name'], 'sdk-example-rust-plugin')
             self.assertEqual(cargo['bin'][0]['name'], 'plugin-plugin')
-            self.assertIn('name = "sdk-example-rust-plugin"\nversion = "0.1.0"', (target / 'Cargo.lock').read_text())
+            self.assertIn('name = "sdk-example-rust-plugin"\nversion = "0.1.1"', (target / 'Cargo.lock').read_text())
 
     def test_removed_cpp_starter_is_not_generated(self):
         with tempfile.TemporaryDirectory() as temporary:

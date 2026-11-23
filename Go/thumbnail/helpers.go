@@ -54,13 +54,16 @@ func PNG(ctx context.Context, source image.Image) ([]byte, error) {
 		return nil, errors.New("thumbnail: output exceeds supported limits")
 	}
 	// Use the same 8-bit straight-alpha representation as all other SDKs
-	out := image.NewNRGBA(image.Rect(0, 0, w, h))
-	for y := range h {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		for x := range w {
-			out.Set(x, y, source.At(b.Min.X+x, b.Min.Y+y))
+	out, direct := source.(*image.NRGBA)
+	if !direct {
+		out = image.NewNRGBA(image.Rect(0, 0, w, h))
+		for y := range h {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			for x := range w {
+				out.Set(x, y, source.At(b.Min.X+x, b.Min.Y+y))
+			}
 		}
 	}
 	var encoded bytes.Buffer

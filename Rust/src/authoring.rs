@@ -136,7 +136,11 @@ impl Renderer {
     }
     // Produce the current display representation for action authoring
     pub fn render(&mut self, client: &Client, context: &str, desired: Display) -> Result<()> {
-        for message in display_messages(context, self.last.get(context), &desired, true, true) {
+        let previous = self.last.get(context);
+        if previous == Some(&desired) {
+            return Ok(());
+        }
+        for message in display_messages(context, previous, &desired, true, true) {
             client.send(
                 message["event"].as_str().unwrap(),
                 context,
@@ -295,6 +299,7 @@ struct JobResult {
 }
 pub type Inspector = Box<dyn FnMut(&mut Plugin, &Client, &Event) -> Result<()>>;
 pub struct Plugin {
+    secret_fields: Option<BTreeMap<String, Arc<Value>>>,
     pub action_logging: Option<fn(&Event) -> bool>,
     pub inspector: Option<Inspector>,
     pub clock: Box<dyn Fn() -> u64>,
@@ -319,6 +324,7 @@ impl Default for Plugin {
         let (sender, receiver) = sync_channel(64);
         Self {
             action_logging: None,
+            secret_fields: None,
             inspector: None,
             clock: Box::new(|| {
                 SystemTime::now()
@@ -685,12 +691,23 @@ impl Handler for Plugin {
         ]
         .contains(&event.event.as_str())
         {
-            let mut snapshots = vec![self.globals.clone(), event.settings().clone()];
-            snapshots.extend(
+            use crate::credentials::secret_settings;
+            let fields = self.secret_fields.get_or_insert_with(|| {
                 self.bindings
-                    .values()
-                    .map(|binding| binding.settings.clone()),
-            );
+                    .iter()
+                    .map(|(id, b)| (id.clone(), Arc::new(secret_settings(&b.settings))))
+                    .collect()
+            });
+            let incoming = Arc::new(secret_settings(event.settings()));
+            let mut snapshots = vec![Arc::new(secret_settings(&self.globals)), incoming.clone()];
+            snapshots.extend(fields.values().cloned());
+            if event.event != "didReceiveGlobalSettings" {
+                if incoming.as_object().is_some_and(|v| !v.is_empty()) {
+                    fields.insert(event.context.clone(), incoming);
+                } else {
+                    fields.remove(&event.context);
+                }
+            }
             client.set_log_redactor(move |text| {
                 snapshots
                     .iter()
@@ -699,6 +716,11 @@ impl Handler for Plugin {
                             .to_string()
                     })
             });
+        }
+        if event.event == "willDisappear" {
+            if let Some(fields) = &mut self.secret_fields {
+                fields.remove(&event.context);
+            }
         }
         self.drain_jobs(client)?;
         let old = self.scope.clone();

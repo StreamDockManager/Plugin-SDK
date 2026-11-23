@@ -200,7 +200,7 @@ class Redirects(HTTPRedirectHandler):
 
 
 # Submit the httpclient request and wait for its response
-def request(settings, *, cache=None, automatic=False, status_only=False, no_redirect=False, allow_user_info=False, cancel=None, network=None):
+def request(settings, *, cache=None, automatic=False, status_only=False, no_redirect=False, allow_user_info=False, cancel=None, network=None, preview=True):
     start = time.monotonic()
     if cancel is not None and cancel.is_set(): raise RuntimeError('request cancelled or timed out')
     method = str(settings.get('method', 'GET')).upper()
@@ -241,7 +241,7 @@ def request(settings, *, cache=None, automatic=False, status_only=False, no_redi
     ticket = None
     conditional = any(key.lower() in ('if-match', 'if-none-match', 'if-modified-since', 'if-unmodified-since', 'if-range', 'range') for key in headers)
     if cache and automatic and method == 'GET' and not conditional:
-        ticket = cache.begin([method, url, headers, body, fields, settings.get('field'), status_only, no_redirect, allow_user_info, sorted(secrets)])
+        ticket = cache.begin([method, url, headers, body, fields, settings.get('field'), preview, status_only, no_redirect, allow_user_info, sorted(secrets)])
         if no_store(next((v for k, v in headers.items() if k.lower() == 'cache-control'), '')):
             with cache.lock: cache.entries.pop(ticket[0], None)
             ticket = None
@@ -302,10 +302,12 @@ def request(settings, *, cache=None, automatic=False, status_only=False, no_redi
                     try:
                         text = data.decode('utf-8').lstrip()
                         root, consumed = json.JSONDecoder().raw_decode(text)
-                    except (ValueError, UnicodeError): result.preview = redact(data[:4096].decode(errors='replace'), secrets)
+                    except (ValueError, UnicodeError):
+                        if preview: result.preview = redact(data[:4096].decode(errors='replace'), secrets)
                     else:
                         if text[consumed:].strip(): raise ValueError('response contains trailing JSON data')
-                        result.preview, result.paths = redact(root, secrets), path_suggestions(root)
+                        if preview:
+                            result.preview, result.paths = redact(root, secrets), path_suggestions(root)
                         for name, path in fields.items():
                             value, found = extract_path(root, path)
                             if found: result.fields[name] = redact(value, secrets)

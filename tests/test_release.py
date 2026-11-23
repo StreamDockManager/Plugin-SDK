@@ -2,7 +2,9 @@
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -125,7 +127,7 @@ class ReleaseTests(unittest.TestCase):
 
     # Keep both release and Go submodule tag identities immutable on retries
     def test_tag_collision_and_retry(self):
-        for tag in ['v0.1.0', 'Go/v0.1.0']:
+        for tag in [f'v{release.VERSION}', f'Go/v{release.VERSION}']:
             matching = {'object': {'sha': 'a' * 40, 'type': 'commit'}}
             with patch.object(release, 'api', return_value=matching) as api:
                 release.ensure_tag(tag, 'a' * 40)
@@ -165,7 +167,6 @@ class ReleaseTests(unittest.TestCase):
                     return {'artifacts': [dict(id=7, name='sdk-release-12-2', expired=False,
                             size_in_bytes=len(payload), digest='sha256:' + release.digest(payload),
                             workflow_run=run)]}
-                if route == 'actions/artifacts/7/zip': return payload
                 if route.startswith('git/ref/tags/'):
                     sha = state['tags'].get(route.removeprefix('git/ref/tags/'))
                     return {'object': {'sha': sha, 'type': 'commit'}} if sha else None
@@ -199,19 +200,24 @@ class ReleaseTests(unittest.TestCase):
                         if fault == 'origin': result['artifacts'][0]['workflow_run'] = {**run, 'head_sha': 'b' * 40}
                         if fault == 'digest': result['artifacts'][0]['digest'] = 'sha256:' + '0' * 64
                     return result
-                with patch.object(release, 'api', side_effect=forged), self.assertRaises(ValueError):
+                with (patch.object(release, 'api', side_effect=forged),
+                      patch.object(release, 'download_actions_artifact', return_value=payload),
+                      self.assertRaises(ValueError)):
                     release.publish('12')
                 self.assertEqual(state['mutations'], 0)
 
-            with patch.object(release, 'api', side_effect=api), patch.object(release.subprocess, 'run', side_effect=upload):
+            with (patch.object(release, 'api', side_effect=api),
+                  patch.object(release, 'download_actions_artifact', return_value=payload) as download,
+                  patch.object(release.subprocess, 'run', side_effect=upload)):
                 # A Go-tag collision must not leave a new root tag behind
-                state['tags']['Go/v0.1.0'] = 'b' * 40
+                state['tags'][f'Go/v{release.VERSION}'] = 'b' * 40
                 with self.assertRaises(ValueError): release.publish('12')
                 self.assertEqual(state['mutations'], 0)
                 state['tags'].clear()
                 release.publish('12')
                 self.assertFalse(state['release']['draft'])
-                self.assertEqual(set(state['tags']), {'v0.1.0', 'Go/v0.1.0'})
+                self.assertEqual(set(state['tags']), {f'v{release.VERSION}', f'Go/v{release.VERSION}'})
+                self.assertTrue(all(call.args == ('7',) for call in download.call_args_list))
                 before = state['mutations']
                 release.publish('12')
                 self.assertEqual(state['mutations'], before)
@@ -226,6 +232,92 @@ class ReleaseTests(unittest.TestCase):
                 before = state['mutations']
                 with self.assertRaises(ValueError): release.publish('12')
                 self.assertEqual(state['mutations'], before)
+
+    # The artifact API authenticates once and its signed storage request has no credentials
+    def test_actions_artifact_download_uses_anonymous_storage(self):
+        location = 'https://productionresultssa0.blob.core.windows.net/artifacts/archive.zip?fixture=signature'
+        requests = []
+
+        def curl(command, *, input, env, timeout, **kwargs):
+            self.assertNotIn('--location', command)
+            self.assertNotIn(location, command)
+            self.assertNotIn('fixture_token', command)
+            self.assertNotIn('GH_TOKEN', env)
+            self.assertNotIn('GITHUB_TOKEN', env)
+            self.assertGreater(timeout, 0)
+            fields = []
+            for line in input.decode().splitlines():
+                key, value = line.split(' = ', 1)
+                fields.append((key, json.loads(value)))
+            requests.append(fields)
+            configuration = dict(fields)
+            if 'dump-header' in configuration:
+                Path(configuration['dump-header']).write_bytes(
+                    b'HTTP/1.1 200 Connection established\r\n\r\nHTTP/2 302\r\n'
+                    + f'location: {location}\r\n\r\n'.encode()
+                )
+                self.assertEqual(command[command.index('--max-filesize') + 1],
+                                 str(release.MAX_REDIRECT_HEADERS))
+                return subprocess.CompletedProcess(command, 0, b'302')
+            Path(configuration['output']).write_bytes(b'fixture-zip')
+            self.assertEqual(command[command.index('--max-filesize') + 1],
+                             str(release.MAX_ARTIFACT_BYTES))
+            return subprocess.CompletedProcess(command, 0, b'200')
+
+        with (patch.dict(os.environ, {'GH_TOKEN': 'fixture_token', 'GITHUB_TOKEN': 'another_token'}),
+              patch.object(release.subprocess, 'run', side_effect=curl)):
+            self.assertEqual(release.download_actions_artifact('7'), b'fixture-zip')
+        self.assertEqual(dict(requests[0])['url'],
+                         f'https://api.github.com/repos/{release.REPOSITORY}/actions/artifacts/7/zip')
+        self.assertEqual([value for key, value in requests[0] if key == 'header'],
+                         ['Accept: application/vnd.github+json', 'Authorization: Bearer fixture_token'])
+        self.assertEqual([value for key, value in requests[1] if key == 'header'], [])
+        self.assertEqual(dict(requests[1])['url'], location)
+
+    # Refuse ambiguous, insecure or foreign storage redirects before issuing another request
+    def test_actions_artifact_refuses_invalid_redirects(self):
+        host = 'productionresultssa0.blob.core.windows.net'
+        for value in (
+            f'http://{host}/file?key=test',
+            f'https://{host}.example.com/file?key=test',
+            f'https://fixture@{host}/file?key=test',
+            f'https://{host}:8443/file?key=test',
+            f'https://{host}/file',
+            f'https://{host}/file?key=test#part',
+            '//127.0.0.1/file?key=test',
+        ):
+            with self.subTest(value=value), self.assertRaisesRegex(RuntimeError, 'unsupported storage'):
+                release.artifact_redirect(f'HTTP/2 302\r\nlocation: {value}\r\n\r\n'.encode())
+        with self.assertRaisesRegex(RuntimeError, 'invalid redirect'):
+            release.artifact_redirect(b'HTTP/2 302\r\nlocation: one\r\nlocation: two\r\n\r\n')
+
+    # Reject the wrong API status and never follow a storage-side redirect
+    def test_actions_artifact_rejects_unexpected_status(self):
+        def redirect(_url, _output, _limit, _deadline, *, response_headers, request_headers):
+            response_headers.write_bytes(
+                b'HTTP/2 302\r\nlocation: https://productionresultssa1.blob.core.windows.net/'
+                b'archive.zip?fixture=signature\r\n\r\n'
+            )
+            return 302
+
+        with patch.dict(os.environ, {'GH_TOKEN': 'fixture_token'}):
+            with patch.object(release, 'artifact_get', return_value=415) as get:
+                with self.assertRaisesRegex(RuntimeError, 'HTTP 415; expected 302'):
+                    release.download_actions_artifact('7')
+                get.assert_called_once()
+            with patch.object(release, 'artifact_get',
+                              side_effect=lambda *args, **kwargs: redirect(*args, **kwargs) if kwargs else 302) as get:
+                with self.assertRaisesRegex(RuntimeError, 'storage returned HTTP 302'):
+                    release.download_actions_artifact('7')
+                self.assertEqual(get.call_count, 2)
+
+    # Surface timeouts without including the signed URL or subprocess error details
+    def test_actions_artifact_timeout_is_sanitized(self):
+        failure = subprocess.TimeoutExpired(['curl'], 1, output=b'fixture signed URL')
+        with patch.object(release.subprocess, 'run', side_effect=failure):
+            with self.assertRaisesRegex(RuntimeError, '^GitHub Actions artifact download timed out$'):
+                release.artifact_get('https://productionresultssa0.blob.core.windows.net/file?sig=secret',
+                                     Path('discard'), 42, release.time.monotonic() + 2)
 
     # Reject changes to a completed run while its artifact is being downloaded
     def test_rerun_race(self):

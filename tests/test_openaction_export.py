@@ -51,6 +51,17 @@ class OpenActionExportTests(unittest.TestCase):
         self.assertNotIn('OS', source)
         self.assertEqual(source['Icon'], 'icon.png')
 
+    def test_vsd_controller_names_map_to_openaction(self):
+        source = {'Actions': [{'Controllers': ['Keypad', 'Knob', 'Encoder', 'SecondaryScreen']},
+                              {'Controllers': ['Information'], 'Encoder': {'layout': 'custom.json'}},
+                              {'Controllers': ['Encoder']}, {}]}
+        actions = export_manifest(source, {}, 'mac')['Actions']
+        self.assertEqual(actions, [{'Controllers': ['Keypad', 'Encoder'], 'Encoder': {}},
+                                   {'Controllers': ['Encoder'], 'Encoder': {'layout': 'custom.json'}},
+                                   {'Controllers': ['Encoder'], 'Encoder': {}}, {}])
+        self.assertIn('Knob', source['Actions'][0]['Controllers'])
+        self.assertNotIn('Encoder', source['Actions'][0])
+
     # Verify preserves asset precedence with verified alias
     def test_preserves_asset_precedence_with_verified_alias(self):
         source = {'Icon': 'icon.png'}

@@ -117,6 +117,11 @@ func (e *Engine) RoutinePersist() error {
 
 // Dispatch lifecycle and input events through feature hooks
 func (e *Engine) Handle(ctx context.Context, c *sdk.Client, ev sdk.Event) (err error) {
+	defer func() {
+		if err != nil && e.ShouldLogAction(ev) && e.Feature.ObserveFailure != nil {
+			e.Feature.ObserveFailure(ctx, c, ev.Context, err)
+		}
+	}()
 	if err := e.stateReadError(); err != nil {
 		return err
 	}
@@ -139,16 +144,31 @@ func (e *Engine) Handle(ctx context.Context, c *sdk.Client, ev sdk.Event) (err e
 		}
 	}
 	if c != nil && (ev.Event == "willAppear" || ev.Event == "didReceiveSettings" || ev.Event == "didReceiveGlobalSettings") {
-		snapshots := []map[string]any{CloneSettings(e.Global), CloneSettings(ev.Data().Settings)}
-		for _, b := range e.Bindings {
-			snapshots = append(snapshots, CloneSettings(b.Settings))
-		}
-		c.SetLogRedactor(func(message string) string {
-			for _, s := range snapshots {
-				message = credentials.SafeError(errors.New(message), s).Error()
+		if e.secretFields == nil {
+			e.secretFields = map[string]map[string]any{}
+			for id, b := range e.Bindings {
+				if fields := credentials.SecretSettings(b.Settings); len(fields) > 0 {
+					e.secretFields[id] = fields
+				}
 			}
-			return message
-		})
+		}
+		incoming := credentials.SecretSettings(ev.Data().Settings)
+		snapshots := []map[string]any{credentials.SecretSettings(e.Global), incoming}
+		for _, fields := range e.secretFields {
+			snapshots = append(snapshots, fields)
+		}
+		if ev.Event != "didReceiveGlobalSettings" {
+			if len(incoming) > 0 {
+				e.secretFields[ev.Context] = incoming
+			} else {
+				delete(e.secretFields, ev.Context)
+			}
+		}
+		e.redaction.set(snapshots)
+		c.SetLogRedactor(e.redaction.redact)
+	}
+	if ev.Event == "willDisappear" {
+		delete(e.secretFields, ev.Context)
 	}
 	ctx = e.eventViewContext(ctx, ev)
 	defer func() {
@@ -197,17 +217,7 @@ func (e *Engine) Handle(ctx context.Context, c *sdk.Client, ev sdk.Event) (err e
 		if e.Feature.Settings != nil {
 			e.Feature.Settings("")
 		}
-		e.Global = CloneSettings(ev.Data().Settings)
-		clear(e.Effective)
-		for id := range e.ProbeKeys {
-			e.InvalidateProbe(id)
-		}
-		for id := range e.Jobs {
-			e.CancelJob(id)
-		}
-		if e.Feature.DemandChanged != nil {
-			e.Feature.DemandChanged()
-		}
+		e.UpdateGlobalSettings(ev.Data().Settings, "")
 		return nil
 	}
 	if ev.Context == "" {
@@ -303,7 +313,12 @@ func (e *Engine) Handle(ctx context.Context, c *sdk.Client, ev sdk.Event) (err e
 }
 
 // Process scheduled feature work and completed jobs
-func (e *Engine) Poll(ctx context.Context, c *sdk.Client) error {
+func (e *Engine) Poll(ctx context.Context, c *sdk.Client) (err error) {
+	defer func() {
+		if err != nil && e.Feature.ObserveFailure != nil {
+			e.Feature.ObserveFailure(ctx, c, "", err)
+		}
+	}()
 	if err := e.stateReadError(); err != nil {
 		return err
 	}
@@ -443,4 +458,22 @@ func (e *Engine) Time() time.Time {
 		return e.Now()
 	}
 	return time.Now()
+}
+
+// UpdateGlobalSettings replaces the global snapshot and invalidates dependent work.
+// A connector can preserve its shared job when its connection settings did not change.
+func (e *Engine) UpdateGlobalSettings(settings map[string]any, preserveJob string) {
+	e.Global = CloneSettings(settings)
+	clear(e.Effective)
+	for id := range e.ProbeKeys {
+		e.InvalidateProbe(id)
+	}
+	for id := range e.Jobs {
+		if preserveJob == "" || id != preserveJob {
+			e.CancelJob(id)
+		}
+	}
+	if e.Feature.DemandChanged != nil {
+		e.Feature.DemandChanged()
+	}
 }
